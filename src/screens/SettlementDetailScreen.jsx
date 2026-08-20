@@ -289,9 +289,10 @@ export default function SettlementDetailScreen({
             ‹ 목록으로
           </button>
           <div className="flex flex-col items-center justify-center gap-3 border border-gray-200 bg-white py-24">
-            <p className="text-sm text-gray-500">등록 가능한 정산월이 없습니다</p>
+            <p className="text-sm text-gray-500">현재 등록 가능한 정산월이 없습니다</p>
             <p className="text-xs text-gray-400">
-              이미 끝난 달의 실비용이 모두 입력되었습니다. 이번 달이 끝나면 등록할 수 있어요.
+              입식월처럼 정산 대상이 아니거나 입력에서 제외된 달은 미입력 상태로 남을 수 있습니다.
+              다음 정산월이 끝난 뒤 등록할 수 있어요.
             </p>
           </div>
         </div>

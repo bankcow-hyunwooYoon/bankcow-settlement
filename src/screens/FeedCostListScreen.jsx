@@ -261,7 +261,7 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
       </div>
       <ConfirmDialog
         open={showNoMonthDialog}
-        message="입식월부터 지난달까지의 사료비와 관리비가 모두 입력되어 있습니다. 다음 정산월이 끝난 뒤 등록할 수 있습니다."
+        message="현재 등록 가능한 정산월이 없습니다. 입식월처럼 정산 대상이 아니거나 입력에서 제외된 달은 미입력 상태로 남을 수 있습니다. 다음 정산월이 끝난 뒤 등록할 수 있습니다."
         onCancel={() => setShowNoMonthDialog(false)}
         onConfirm={() => setShowNoMonthDialog(false)}
         confirmLabel="확인"
