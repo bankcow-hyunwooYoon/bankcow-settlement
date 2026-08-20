@@ -1,11 +1,9 @@
 import { now } from './prototypeDate.js'
+import { getExitHistory } from './livestockHistory.js'
 
 export const TOTAL_CATTLE_COUNT = 50
 /** 첫 정산월(2025년 9월)과 일치하는 프로토타입 입식일. */
 export const FARM_PLACEMENT_DATE = '2025년 9월 1일'
-
-/** 상품 단위로 설정된 관리비보증금. 매월 계산 대상이 아니라 출하 정산 시 1회 지급된다. */
-export const MGMT_DEPOSIT_PER_PRODUCT = 3000000
 
 /** 상품의 사육 시작월. 이 달부터가 정산 대상이다. */
 export const PRODUCT_START_MONTH = '2025년 9월'
@@ -40,48 +38,23 @@ export function getDaysInSettlementMonth(label) {
   return new Date(year, month, 0).getDate()
 }
 
-/**
- * 개체별 이탈 이력 목업. 실제 서비스에서는 개체 이력 데이터로 대체한다.
- * 이탈한 개체는 이후 정산월에도 상태와 이탈일이 유지되지만, 사육일수와 배분금액은 0이다.
- */
-const CATTLE_EXIT_HISTORY = {
-  '2025년 9월': [
-    { no: 7, status: '폐사', exitDay: 11 },
-    { no: 28, status: '조기출하', exitDay: 23 },
-  ],
-  '2025년 10월': [
-    { no: 12, status: '폐사', exitDay: 8 },
-    { no: 31, status: '폐사', exitDay: 19 },
-    { no: 44, status: '조기출하', exitDay: 25 },
-  ],
-  '2025년 11월': [
-    { no: 5, status: '폐사', exitDay: 14 },
-    { no: 37, status: '조기출하', exitDay: 22 },
-  ],
-  '2025년 12월': [
-    { no: 9, status: '폐사', exitDay: 6 },
-    { no: 26, status: '조기출하', exitDay: 17 },
-    { no: 48, status: '폐사', exitDay: 28 },
-  ],
-}
-
-export function getExceptionCattle(settlementMonth) {
+export function getExceptionCattle(settlementMonth, farmName = '충만농장', unitId) {
   const currentMonthIndex = monthIndex(settlementMonth)
-  return Object.entries(CATTLE_EXIT_HISTORY).flatMap(([exitMonth, cattleList]) => {
+  return Object.entries(getExitHistory(unitId)).flatMap(([exitMonth, cattleList]) => {
     if (monthIndex(exitMonth) > currentMonthIndex) return []
     return cattleList.map((cattle) => ({
       ...cattle,
       id: `c${cattle.no}`,
-      name: `충만농장 ${cattle.no}호`,
+      name: `${farmName} ${cattle.no}호`,
       exitMonth,
-      // 정산월과 이탈월이 같을 때만 이탈일까지의 일수가 발생한다.
+      // 정산월과 사고월이 같을 때만 사고일까지의 일수가 발생한다.
       isPastExit: monthIndex(exitMonth) < currentMonthIndex,
     }))
   })
 }
 
-export function getCattleForMonth(settlementMonth) {
-  const exceptionByNo = new Map(getExceptionCattle(settlementMonth).map((cattle) => [cattle.no, cattle]))
+export function getCattleForMonth(settlementMonth, farmName = '충만농장', unitId) {
+  const exceptionByNo = new Map(getExceptionCattle(settlementMonth, farmName, unitId).map((cattle) => [cattle.no, cattle]))
   return Array.from({ length: TOTAL_CATTLE_COUNT }, (_, index) => index + 1).map(
     (no) => {
       const exception = exceptionByNo.get(no)
@@ -94,11 +67,11 @@ export function getCattleForMonth(settlementMonth) {
       return {
         id: `c${no}`,
         no,
-        name: `충만농장 ${no}호`,
+        name: `${farmName} ${no}호`,
         historyNo: `002-${String(202500000 + no).slice(-8)}`,
         birthDate,
         ageInMonths,
-        status: exception?.status ?? '정상',
+        status: exception?.status ?? '사육중',
         exitDay: exception?.exitDay ?? null,
         exitMonth: exception?.exitMonth ?? null,
         isPastExit: exception?.isPastExit ?? false,
@@ -108,29 +81,75 @@ export function getCattleForMonth(settlementMonth) {
 }
 
 // 기존 화면 호환용 기본 목업(2025년 10월 기준).
-export const EXCEPTION_CATTLE = getExceptionCattle('2025년 10월')
-export const NORMAL_CATTLE = getCattleForMonth('2025년 10월').filter((cattle) => cattle.status === '정상')
+export const EXCEPTION_CATTLE = getExceptionCattle('2026년 7월', '충만농장', 'unit-chungman-202606')
+export const NORMAL_CATTLE = getCattleForMonth('2026년 7월', '충만농장', 'unit-chungman-202606').filter((cattle) => cattle.status === '사육중')
 
 /**
  * 개체별 사육일수.
- * 정상 소는 정산월의 실제 일수, 예외 소는 사료비=이탈일 전날까지 / 관리비=이탈일 당일까지.
+ * 사육중 개체는 정산월의 실제 일수, 사고 개체는 사료비=사고일 전날까지 / 관리비=사고일 당일까지.
  */
-function feedDaysOf(cattle, daysInMonth) {
-  if (cattle.isPastExit) return 0
-  return cattle.status === '정상' ? daysInMonth : cattle.exitDay - 1
+/** 입식월이면 입식일을 포함해 그 날부터 사육일수를 센다. */
+function getMonthStartDay(settlementMonth, placementDate) {
+  if (!placementDate) return 1
+  const placement = new Date(`${placementDate}T00:00:00`)
+  const { year, month } = parseSettlementMonth(settlementMonth)
+  return placement.getFullYear() === year && placement.getMonth() + 1 === month ? placement.getDate() : 1
 }
 
-function mgmtDaysOf(cattle, daysInMonth) {
+function feedDaysOf(cattle, daysInMonth, settlementMonth, placementDate) {
   if (cattle.isPastExit) return 0
-  return cattle.status === '정상' ? daysInMonth : cattle.exitDay
+  const startDay = getMonthStartDay(settlementMonth, placementDate)
+  const endDay = cattle.status === '사육중' ? daysInMonth : cattle.exitDay - 1
+  return Math.max(0, endDay - startDay + 1)
+}
+
+function mgmtDaysOf(cattle, daysInMonth, settlementMonth, placementDate) {
+  if (cattle.isPastExit) return 0
+  const startDay = getMonthStartDay(settlementMonth, placementDate)
+  const endDay = cattle.status === '사육중' ? daysInMonth : cattle.exitDay
+  return Math.max(0, endDay - startDay + 1)
+}
+
+/**
+ * 원 단위 배분값을 총액과 정확히 맞춘다.
+ *
+ * 각 금액을 먼저 버림 처리한 뒤, 남은 1원은 소수점이 큰 개체부터 한 번씩 배분한다.
+ * 소수점까지 같으면 개체 번호가 작은 순서로 배분해 항상 같은 결과가 나오게 한다.
+ */
+function allocateWholeWon(rows, rawAmountKey, totalAmount) {
+  const targetTotal = Math.round(Number(totalAmount) || 0)
+  const allocations = rows.map((row) => {
+    const rawAmount = Number(row[rawAmountKey]) || 0
+    const baseAmount = Math.floor(rawAmount)
+    return {
+      id: row.id,
+      no: row.no,
+      baseAmount,
+      fraction: rawAmount - baseAmount,
+    }
+  })
+
+  const baseTotal = allocations.reduce((sum, allocation) => sum + allocation.baseAmount, 0)
+  const remainder = targetTotal - baseTotal
+  const ranked = [...allocations].sort((a, b) => (
+    b.fraction - a.fraction || a.no - b.no
+  ))
+  const allocatedById = new Map(allocations.map((allocation) => [allocation.id, allocation.baseAmount]))
+
+  // 총액은 정수이고 모든 원금액은 버림 처리했으므로, 잔여는 배분 대상 수보다 작다.
+  for (let index = 0; index < remainder; index += 1) {
+    const allocation = ranked[index]
+    allocatedById.set(allocation.id, allocatedById.get(allocation.id) + 1)
+  }
+  return allocatedById
 }
 
 /** 정산월의 사료비/관리비 사육일수 합계. */
-export function calculateTotalDays(daysInMonth, settlementMonth) {
-  const allCattle = getCattleForMonth(settlementMonth)
+export function calculateTotalDays(daysInMonth, settlementMonth, farmName, unitId, placementDate) {
+  const allCattle = getCattleForMonth(settlementMonth, farmName, unitId)
   return {
-    totalFeedDays: allCattle.reduce((sum, c) => sum + feedDaysOf(c, daysInMonth), 0),
-    totalMgmtDays: allCattle.reduce((sum, c) => sum + mgmtDaysOf(c, daysInMonth), 0),
+    totalFeedDays: allCattle.reduce((sum, c) => sum + feedDaysOf(c, daysInMonth, settlementMonth, placementDate), 0),
+    totalMgmtDays: allCattle.reduce((sum, c) => sum + mgmtDaysOf(c, daysInMonth, settlementMonth, placementDate), 0),
   }
 }
 
@@ -138,16 +157,16 @@ export function calculateTotalDays(daysInMonth, settlementMonth) {
  * 개체별 배분 결과를 계산한다.
  * 금액은 반올림하지 않은 정확한 값으로 들고 있고, 반올림은 표시 시점에만 한다.
  */
-export function calculateAllocation({ feedCostTotal, mgmtCostTotal, daysInMonth, settlementMonth }) {
-  const allCattle = getCattleForMonth(settlementMonth)
-  const { totalFeedDays, totalMgmtDays } = calculateTotalDays(daysInMonth, settlementMonth)
+export function calculateAllocation({ feedCostTotal, mgmtCostTotal, daysInMonth, settlementMonth, farmName, unitId, placementDate }) {
+  const allCattle = getCattleForMonth(settlementMonth, farmName, unitId)
+  const { totalFeedDays, totalMgmtDays } = calculateTotalDays(daysInMonth, settlementMonth, farmName, unitId, placementDate)
 
   const feedUnitPrice = feedCostTotal / totalFeedDays
   const mgmtUnitPrice = mgmtCostTotal / totalMgmtDays
 
-  const rows = allCattle.map((cattle) => {
-    const feedDays = feedDaysOf(cattle, daysInMonth)
-    const mgmtDays = mgmtDaysOf(cattle, daysInMonth)
+  const rawRows = allCattle.map((cattle) => {
+    const feedDays = feedDaysOf(cattle, daysInMonth, settlementMonth, placementDate)
+    const mgmtDays = mgmtDaysOf(cattle, daysInMonth, settlementMonth, placementDate)
     const feedAmount = feedUnitPrice * feedDays
     const mgmtAmount = mgmtUnitPrice * mgmtDays
     return {
@@ -161,8 +180,23 @@ export function calculateAllocation({ feedCostTotal, mgmtCostTotal, daysInMonth,
   })
 
   // 검증은 반올림 전 정확한 값의 합으로 한다.
-  const exactFeedSum = rows.reduce((sum, r) => sum + r.feedAmount, 0)
-  const exactMgmtSum = rows.reduce((sum, r) => sum + r.mgmtAmount, 0)
+  const exactFeedSum = rawRows.reduce((sum, r) => sum + r.feedAmount, 0)
+  const exactMgmtSum = rawRows.reduce((sum, r) => sum + r.mgmtAmount, 0)
+
+  const allocatedFeedById = allocateWholeWon(rawRows, 'feedAmount', feedCostTotal)
+  const allocatedMgmtById = allocateWholeWon(rawRows, 'mgmtAmount', mgmtCostTotal)
+  const rows = rawRows.map((row) => {
+    const feedAmount = allocatedFeedById.get(row.id)
+    const mgmtAmount = allocatedMgmtById.get(row.id)
+    return {
+      ...row,
+      rawFeedAmount: row.feedAmount,
+      rawMgmtAmount: row.mgmtAmount,
+      feedAmount,
+      mgmtAmount,
+      totalAmount: feedAmount + mgmtAmount,
+    }
+  })
 
   // 부동소수점 오차만 허용한다.
   const EPSILON = 0.000001
@@ -178,6 +212,8 @@ export function calculateAllocation({ feedCostTotal, mgmtCostTotal, daysInMonth,
     exactFeedSum,
     exactMgmtSum,
     exactTotalSum: exactFeedSum + exactMgmtSum,
+    allocatedFeedSum: rows.reduce((sum, row) => sum + row.feedAmount, 0),
+    allocatedMgmtSum: rows.reduce((sum, row) => sum + row.mgmtAmount, 0),
     isVerified: feedMatches && mgmtMatches,
     feedDiff: exactFeedSum - feedCostTotal,
     mgmtDiff: exactMgmtSum - mgmtCostTotal,

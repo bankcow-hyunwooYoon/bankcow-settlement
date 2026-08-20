@@ -1,7 +1,8 @@
 const STATUS_CLASSES = {
-  정상: 'bg-gray-100 text-gray-600 ring-gray-500/20',
+  사육중: 'bg-gray-100 text-gray-600 ring-gray-500/20',
   폐사: 'bg-red-100 text-red-700 ring-red-600/20',
-  조기출하: 'bg-red-100 text-red-700 ring-red-600/20',
+  조기출하: 'bg-orange-100 text-orange-700 ring-orange-600/20',
+  정상출하: 'bg-emerald-100 text-emerald-700 ring-emerald-600/20',
 }
 
 export default function CattleStatusBadge({ status, muted = false }) {

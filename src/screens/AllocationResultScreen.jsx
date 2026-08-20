@@ -31,8 +31,8 @@ function VerificationBanner({ result }) {
           사료비 총액, 관리비 총액과 정확히 일치합니다
         </p>
         <p className="mt-0.5 text-xs text-emerald-700">
-          개체별 금액을 반올림 전 값으로 합산해 검증했습니다. 화면에 보이는 숫자는 표시용으로
-          반올림된 값이라 단순 합산 시 1~2원 차이가 보일 수 있습니다.
+          개체별 금액을 원 단위까지 배분했으므로, 화면과 엑셀에서 보이는 금액을 합산해도
+          입력한 총액과 정확히 일치합니다.
         </p>
       </div>
     )
@@ -92,7 +92,7 @@ function AllocationTable({ rows, totals }) {
         </thead>
         <tbody>
           {rows.map((row) => {
-            const isException = row.status !== '정상'
+            const isException = row.status === '폐사' || row.status === '조기출하'
             const rowBg = isException
               ? row.status === '폐사'
                 ? 'bg-red-50/70 hover:bg-red-50'
@@ -108,16 +108,16 @@ function AllocationTable({ rows, totals }) {
                   {row.feedDays}일
                 </td>
                 <td className="border-b border-gray-200 px-4 py-2.5 text-right text-gray-700">
-                  {formatWon(roundWon(row.feedAmount))}
+                  {formatWon(row.feedAmount)}
                 </td>
                 <td className="border-b border-gray-200 px-4 py-2.5 text-right text-gray-700">
                   {row.mgmtDays}일
                 </td>
                 <td className="border-b border-gray-200 px-4 py-2.5 text-right text-gray-700">
-                  {formatWon(roundWon(row.mgmtAmount))}
+                  {formatWon(row.mgmtAmount)}
                 </td>
                 <td className="border-b border-gray-200 px-4 py-2.5 text-right font-medium text-gray-900">
-                  {formatWon(roundWon(row.totalAmount))}
+                  {formatWon(row.totalAmount)}
                 </td>
               </tr>
             )
@@ -152,10 +152,10 @@ export default function AllocationResultScreen({ onBack, onConfirm, input }) {
     [feedCostTotal, mgmtCostTotal, daysInMonth],
   )
 
-  // 예외 개체를 항상 위에 고정하고, 그 아래 정상 개체를 개체명(번호) 순으로 정렬한다.
+  // 사고 개체를 항상 위에 고정하고, 그 아래 사육중 개체를 개체명(번호) 순으로 정렬한다.
   const sortedRows = useMemo(() => sortRows(result.rows), [result.rows])
 
-  const visibleRows = activeTab === 'exception' ? sortedRows.filter((r) => r.status !== '정상') : sortedRows
+  const visibleRows = activeTab === 'exception' ? sortedRows.filter((r) => r.status !== '사육중') : sortedRows
 
   // 합계 행은 현재 탭에 보이는 개체 기준으로 집계한다.
   const totals = useMemo(

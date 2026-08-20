@@ -18,7 +18,6 @@ import {
   calculateAllocation,
   EXCEPTION_CATTLE,
   getDaysInSettlementMonth,
-  MGMT_DEPOSIT_PER_PRODUCT,
   NORMAL_CATTLE,
 } from '../lib/settlement.js'
 import { useDebouncedValue } from '../lib/hooks.js'
@@ -43,7 +42,7 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
               <div className="flex items-center gap-3">
                 <CattleStatusBadge status={cattle.status} />
                 <span className="text-gray-500">
-                  이탈일 {settlementMonth} {cattle.exitDay}일
+                  사고일 {settlementMonth} {cattle.exitDay}일
                 </span>
               </div>
             </div>
@@ -71,25 +70,6 @@ function MoneyInput({ id, label, value, onChange }) {
           className="w-full border border-gray-200 px-3 py-2 pr-10 text-[13px] text-gray-900 focus:border-gray-400 focus:outline-none"
         />
         <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-gray-400">원</span>
-      </div>
-    </div>
-  )
-}
-
-function MgmtDepositInfoCard() {
-  return (
-    <div className="mb-5 border border-gray-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium text-gray-600">관리비보증금 (참고)</p>
-          <p className="mt-1 text-xs text-gray-500">
-            관리비보증금은 매월이 아닌 정산(출하) 시점에 1회 지급됩니다. 이번 달 계산에는 포함되지
-            않습니다.
-          </p>
-        </div>
-        <p className="shrink-0 text-sm font-semibold text-gray-900">
-          {formatWon(MGMT_DEPOSIT_PER_PRODUCT)}
-        </p>
       </div>
     </div>
   )
@@ -217,8 +197,6 @@ export default function FeedCostRegisterScreen({
         )}
 
         <ExceptionCattlePanel settlementMonth={settlementMonth} cattleList={EXCEPTION_CATTLE} />
-
-        <MgmtDepositInfoCard />
 
         <div className="mb-5 border border-gray-200 bg-white p-4">
           <label className="mb-1 block text-xs font-medium text-gray-600">정산월</label>

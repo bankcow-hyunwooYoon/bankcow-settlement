@@ -6,6 +6,7 @@ import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import AllocationResult, { CostSummaryCard } from '../components/AllocationResult.jsx'
 import { formatDateTime, formatNumber, formatWon, parseDigits } from '../lib/format.js'
 import { useDebouncedValue } from '../lib/hooks.js'
+import { createAttachment, downloadAttachment, downloadAttachmentsZip, formatFileSize } from '../lib/attachments.js'
 import { now } from '../lib/prototypeDate.js'
 import {
   sortRows,
@@ -19,7 +20,6 @@ import {
   getDaysInSettlementMonth,
 } from '../lib/settlement.js'
 
-const FARM_NAME = '충만농장'
 const NORMAL_COUNT = 50
 
 function ExceptionCattlePanel({ settlementMonth, cattleList }) {
@@ -34,36 +34,35 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
       >
         <span className="text-xs font-medium text-gray-700">
-          {monthLabel ? `${monthLabel}월 기준 이탈 개체` : '이번 달 이탈 개체'}
+          {monthLabel ? `${monthLabel}월 기준 사고 개체` : '이번 달 사고 개체'}
           <span className="ml-1.5 text-gray-400">{cattleList.length}두</span>
         </span>
         <span className="text-xs text-gray-400">{isOpen ? '⌃ 접기' : '⌄ 펼치기'}</span>
       </button>
       {isOpen && (
-        <div className="border-t border-gray-200 px-4 py-2">
+        <div className="border-t border-gray-200">
           {cattleList.length === 0 ? (
-            <p className="py-1.5 text-sm text-gray-500">이탈 개체가 없습니다</p>
+            <p className="px-4 py-3 text-sm text-gray-500">사고 개체가 없습니다</p>
           ) : (
             <div className="divide-y divide-gray-100">
           {cattleList.map((cattle) => (
             <div
               key={cattle.id}
-              className={`flex items-center justify-between py-1.5 text-[13px] ${
-                cattle.isPastExit ? 'text-gray-400' : 'text-gray-900'
+              className={`flex items-center justify-between px-4 py-2.5 text-[13px] ${
+                cattle.isPastExit
+                  ? 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                  : cattle.status === '폐사'
+                    ? 'bg-red-50/70 text-gray-900 hover:bg-red-50'
+                    : 'bg-orange-50/70 text-gray-900 hover:bg-orange-50'
               }`}
             >
               <span className="flex items-center gap-2 font-medium">
                 {cattle.name}
-                <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                  cattle.isPastExit ? 'bg-gray-100 text-gray-400' : 'bg-red-100 text-red-700'
-                }`}>
-                  {cattle.exitMonth.match(/(\d+)월/)?.[1]}월 이탈
-                </span>
               </span>
               <div className="flex items-center gap-3">
                 <CattleStatusBadge status={cattle.status} muted={cattle.isPastExit} />
                 <span className={cattle.isPastExit ? 'text-gray-400' : 'text-gray-500'}>
-                  이탈일 {cattle.exitMonth} {cattle.exitDay}일
+                  사고일 {cattle.exitMonth} {cattle.exitDay}일
                 </span>
                 {cattle.isPastExit && <span className="text-gray-400">이번 달 배분 제외</span>}
               </div>
@@ -73,25 +72,6 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-function MgmtDepositInfoCard({ value }) {
-  return (
-    <div className="mb-5 border border-gray-200 bg-white p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium text-gray-600">관리비보증금 (참고)</p>
-          <p className="mt-1 text-xs text-gray-500">
-            관리비보증금은 매월이 아닌 정산(출하) 시점에 1회 지급됩니다. 이번 달 계산에는 포함되지
-            않습니다.
-          </p>
-        </div>
-        <p className="shrink-0 text-sm font-semibold text-gray-900">
-          {value ? formatWon(value) : '미설정'}
-        </p>
-      </div>
     </div>
   )
 }
@@ -123,15 +103,80 @@ function MoneyInput({ id, label, value, onChange, disabled }) {
   )
 }
 
+function AttachmentsPanel({ attachments, onAdd, onRemove, disabled, settlementMonth }) {
+  const [isDownloading, setIsDownloading] = useState(false)
+  const handleDownloadAll = async () => {
+    setIsDownloading(true)
+    await downloadAttachmentsZip([{ 정산월: settlementMonth, 첨부파일: attachments }], '사료관리비')
+    setIsDownloading(false)
+  }
+
+  return (
+    <div className="mb-5 border border-gray-200 bg-white p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium text-gray-600">첨부파일</p>
+          <p className="mt-1 text-xs text-gray-400">세금계산서, 거래명세서, 영수증 등 증빙 파일을 첨부할 수 있습니다.</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {attachments.length > 0 && (
+            <button type="button" onClick={handleDownloadAll} disabled={isDownloading} className="border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:text-gray-400">
+              {isDownloading ? 'ZIP 생성 중...' : '첨부파일 전체 다운로드'}
+            </button>
+          )}
+          {!disabled && (
+            <label className="cursor-pointer bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-gray-700">
+              파일 추가
+              <input
+                type="file"
+                multiple
+                accept="image/*,application/pdf,.xlsx,.xls,.csv"
+                className="sr-only"
+                onChange={(event) => {
+                  onAdd(Array.from(event.target.files ?? []).map(createAttachment))
+                  event.target.value = ''
+                }}
+              />
+            </label>
+          )}
+        </div>
+      </div>
+
+      {attachments.length === 0 ? (
+        <p className="mt-4 border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-center text-xs text-gray-400">
+          첨부된 파일이 없습니다
+        </p>
+      ) : (
+        <ul className="mt-4 divide-y divide-gray-100 border border-gray-200">
+          {attachments.map((attachment) => (
+            <li key={attachment.id} className="flex items-center justify-between gap-4 px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-gray-800">{attachment.name}</p>
+                <p className="mt-0.5 text-[11px] text-gray-400">{formatFileSize(attachment.size)}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3 text-xs">
+                <button type="button" onClick={() => downloadAttachment(attachment)} className="font-medium text-gray-700 hover:underline">다운로드</button>
+                {!disabled && <button type="button" onClick={() => onRemove(attachment.id)} className="text-red-600 hover:underline">삭제</button>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-[11px] text-gray-400">프로토타입에서는 새로고침 시 첨부파일이 유지되지 않습니다.</p>
+    </div>
+  )
+}
+
 export default function SettlementDetailScreen({
   record,
   selectableMonths = [],
   onBack,
   onSave,
   onDelete,
-  mgmtDeposit,
+  unit,
 }) {
   const isNew = !record
+  const farmName = unit.farmName
 
   // 신규는 바로 입력 가능, 기존 행은 읽기 전용으로 진입한다.
   const [mode, setMode] = useState(isNew ? 'new' : 'view')
@@ -141,7 +186,9 @@ export default function SettlementDetailScreen({
   const monthOptions = isNew ? [...selectableMonths].reverse() : [record.정산월]
   const [settlementMonth, setSettlementMonth] = useState(record?.정산월 ?? monthOptions[0] ?? '')
   const [feedCost, setFeedCost] = useState(record?.사료비총액 ?? '')
+  const [roughageCost, setRoughageCost] = useState(record?.조사료비총액 ?? '')
   const [mgmtCost, setMgmtCost] = useState(record?.관리비총액 ?? '')
+  const [attachments, setAttachments] = useState(record?.첨부파일 ?? [])
 
   const isReadOnly = mode === 'view'
   const isEditing = mode === 'edit'
@@ -150,43 +197,58 @@ export default function SettlementDetailScreen({
 
   // 입력이 멈췄을 때만 소별 배분을 다시 계산한다.
   const debouncedFeedCost = useDebouncedValue(feedCost, 300)
+  const debouncedRoughageCost = useDebouncedValue(roughageCost, 300)
   const debouncedMgmtCost = useDebouncedValue(mgmtCost, 300)
 
   const daysInMonth = settlementMonth ? getDaysInSettlementMonth(settlementMonth) : 0
-  const exceptionCattle = useMemo(() => getExceptionCattle(settlementMonth), [settlementMonth])
+  const exceptionCattle = useMemo(
+    () => getExceptionCattle(settlementMonth, farmName, unit.id),
+    [settlementMonth, farmName, unit.id],
+  )
   const deadCount = exceptionCattle.filter((cattle) => cattle.status === '폐사').length
   const earlyCount = exceptionCattle.filter((cattle) => cattle.status === '조기출하').length
 
   const { totalFeedDays, totalMgmtDays } = useMemo(
-    () => calculateTotalDays(daysInMonth, settlementMonth),
-    [daysInMonth, settlementMonth],
+    () => calculateTotalDays(daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate),
+    [daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate],
   )
 
-  const hasValidCosts = Number(debouncedFeedCost) > 0 && Number(debouncedMgmtCost) > 0
-  const hasEnteredValidCosts = Number(feedCost) > 0 && Number(mgmtCost) > 0
+  // 조사료비는 사료비와 합산한 금액을 사료비 사육일수 기준으로 배분한다.
+  const debouncedTotalFeedCost = Number(debouncedFeedCost) + Number(debouncedRoughageCost)
+  const totalFeedCost = Number(feedCost) + Number(roughageCost)
+  const hasValidCosts = debouncedTotalFeedCost > 0 && Number(debouncedMgmtCost) > 0
+  const hasEnteredValidCosts = totalFeedCost > 0 && Number(mgmtCost) > 0
 
   const result = useMemo(() => {
     if (!hasValidCosts) return null
     return calculateAllocation({
-      feedCostTotal: Number(debouncedFeedCost),
+      feedCostTotal: debouncedTotalFeedCost,
       mgmtCostTotal: Number(debouncedMgmtCost),
       daysInMonth,
       settlementMonth,
+      farmName,
+      unitId: unit.id,
+      placementDate: unit.placementDate,
     })
-  }, [hasValidCosts, debouncedFeedCost, debouncedMgmtCost, daysInMonth, settlementMonth])
+  }, [hasValidCosts, debouncedTotalFeedCost, debouncedMgmtCost, daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate])
 
   const buildConfirmedRecord = () => {
     // 저장은 디바운스 대기 중인 값까지 반영한다.
     const currentResult = calculateAllocation({
-      feedCostTotal: Number(feedCost),
+      feedCostTotal: totalFeedCost,
       mgmtCostTotal: Number(mgmtCost),
       daysInMonth,
       settlementMonth,
+      farmName,
+      unitId: unit.id,
+      placementDate: unit.placementDate,
     })
     return {
       정산월: settlementMonth,
       사료비총액: Number(feedCost),
+      조사료비총액: Number(roughageCost),
       관리비총액: Number(mgmtCost),
+      첨부파일: attachments,
       상태: STATUS_CONFIRMED,
       등록일시: formatDateTime(now()),
       소별상세: toCattleDetails(sortRows(currentResult.rows)),
@@ -247,10 +309,15 @@ export default function SettlementDetailScreen({
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold text-gray-900">
-              {FARM_NAME} <span className="text-gray-400">·</span>{' '}
+              {farmName} <span className="text-gray-400">·</span>{' '}
               {isNew ? '사료관리비 등록' : '사료관리비 상세'}
             </h1>
-            <CattleStatusSummary normal={NORMAL_COUNT - exceptionCattle.length} dead={deadCount} early={earlyCount} />
+            <CattleStatusSummary
+              normal={NORMAL_COUNT - exceptionCattle.length}
+              dead={deadCount}
+              early={earlyCount}
+              normalLabel={unit.breedingStatus === '정산완료' ? '정상출하' : '사육중'}
+            />
           </div>
           <div className="flex items-center gap-3">
             <PrototypeDateBadge />
@@ -285,8 +352,6 @@ export default function SettlementDetailScreen({
 
         <ExceptionCattlePanel settlementMonth={settlementMonth} cattleList={exceptionCattle} />
 
-        <MgmtDepositInfoCard value={mgmtDeposit} />
-
         <div className="mb-5 border border-gray-200 bg-white p-4">
           <label className="mb-1 block text-xs font-medium text-gray-600">정산월</label>
           <div className="flex items-center gap-2">
@@ -315,12 +380,22 @@ export default function SettlementDetailScreen({
 
         <div className="mb-5 border border-gray-200 bg-white p-4">
           <p className="mb-3 text-xs font-medium text-gray-600">실비용 입력</p>
-          <div className="grid grid-cols-2 gap-4">
+          <p className="-mt-2 mb-3 text-xs text-gray-400">
+            조사료비는 사료비와 합산해 송아지별 사료비 사육일수 기준으로 배분됩니다.
+          </p>
+          <div className="grid grid-cols-3 gap-4">
             <MoneyInput
               id="feed-cost"
               label="사료비 총액"
               value={feedCost}
               onChange={setFeedCost}
+              disabled={isReadOnly}
+            />
+            <MoneyInput
+              id="roughage-cost"
+              label="조사료비 총액"
+              value={roughageCost}
+              onChange={setRoughageCost}
               disabled={isReadOnly}
             />
             <MoneyInput
@@ -333,15 +408,25 @@ export default function SettlementDetailScreen({
           </div>
         </div>
 
+        <AttachmentsPanel
+          settlementMonth={settlementMonth}
+          attachments={attachments}
+          disabled={isReadOnly}
+          onAdd={(nextAttachments) => setAttachments((current) => [...current, ...nextAttachments])}
+          onRemove={(attachmentId) => setAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId))}
+        />
+
         {result ? (
           <>
             <CostSummaryCard
+              feedCost={Number(debouncedFeedCost)}
+              roughageCost={Number(debouncedRoughageCost)}
               totalFeedCost={result.exactFeedSum}
               totalMgmtCost={result.exactMgmtSum}
               totalFeedDays={totalFeedDays}
               totalMgmtDays={totalMgmtDays}
             />
-            <AllocationResult result={result} />
+            <AllocationResult result={result} isCompletedUnit={unit.breedingStatus === '정산완료'} />
           </>
         ) : (
           <div className="border border-dashed border-gray-200 bg-gray-50 px-4 py-16 text-center">
@@ -363,7 +448,7 @@ export default function SettlementDetailScreen({
             >
               수정완료
             </button>
-          ) : (
+          ) : isNew ? (
             <button
               type="button"
               onClick={() => setConfirmAction('confirm')}
@@ -373,10 +458,10 @@ export default function SettlementDetailScreen({
                   ? 'bg-gray-900 text-white hover:bg-gray-700'
                   : 'cursor-not-allowed bg-gray-200 text-gray-400'
               }`}
-            >
-              확정하기
-            </button>
-          )}
+              >
+                확정하기
+              </button>
+          ) : null}
         </div>
       </div>
 

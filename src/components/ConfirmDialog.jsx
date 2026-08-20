@@ -1,4 +1,4 @@
-export default function ConfirmDialog({ open, message, onCancel, onConfirm }) {
+export default function ConfirmDialog({ open, message, onCancel, onConfirm, cancelLabel = '취소', confirmLabel = '확인', hideCancel = false }) {
   if (!open) return null
 
   return (
@@ -6,19 +6,21 @@ export default function ConfirmDialog({ open, message, onCancel, onConfirm }) {
       <div className="w-full max-w-xs border border-gray-200 bg-white p-5">
         <p className="text-sm text-gray-900">{message}</p>
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-          >
-            취소
-          </button>
+          {!hideCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              {cancelLabel}
+            </button>
+          )}
           <button
             type="button"
             onClick={onConfirm}
             className="bg-gray-900 px-4 py-2 text-xs font-medium text-white hover:bg-gray-700"
           >
-            확인
+            {confirmLabel}
           </button>
         </div>
       </div>
