@@ -60,6 +60,7 @@ function FeedCostTable({ records, onEdit }) {
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">조사료비 총액</th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">사료비+조사료비 합계</th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">관리비 총액</th>
+            <th className="border-b border-gray-200 px-4 py-2.5 font-medium">사료관리비 합계</th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">첨부</th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">등록일시</th>
           </tr>
@@ -83,6 +84,9 @@ function FeedCostTable({ records, onEdit }) {
               </td>
               <td className="border-b border-gray-200 px-4 py-2.5 text-gray-700">
                 {formatWon(record.관리비총액)}
+              </td>
+              <td className="border-b border-gray-200 px-4 py-2.5 font-semibold text-gray-900">
+                {formatWon(Number(record.사료비총액) + Number(record.조사료비총액 ?? 0) + Number(record.관리비총액))}
               </td>
               <td className="border-b border-gray-200 px-4 py-2.5 text-gray-500">
                 {record.첨부파일?.length ? `${record.첨부파일.length}개` : '-'}
@@ -226,7 +230,7 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
               />
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              입식일 {unit.placementDate.replaceAll('-', '.')} <span className="mx-1 text-gray-300">|</span> 총 {unit.headCount}두
+              최초 입식일 {unit.placementDate.replaceAll('-', '.')} <span className="mx-1 text-gray-300">|</span> 총 {unit.headCount}두
             </p>
           </div>
           <div className="flex items-center gap-2">

@@ -74,6 +74,7 @@ export default function BreedingUnitListScreen({ units, onSelectUnit }) {
             <thead>
               <tr className="bg-gray-50 text-gray-500">
                 <th className="border-b border-gray-200 px-4 py-2.5 font-medium">농장명</th>
+                <th className="border-b border-gray-200 px-4 py-2.5 font-medium">최초 입식일</th>
                 <th className="border-b border-gray-200 px-4 py-2.5 font-medium text-right">사육 두수</th>
                 <th className="border-b border-gray-200 px-4 py-2.5 font-medium text-right">연결 상품 수</th>
                 <th className="border-b border-gray-200 px-4 py-2.5 font-medium">상태</th>
@@ -89,8 +90,8 @@ export default function BreedingUnitListScreen({ units, onSelectUnit }) {
                 >
                   <td className="border-b border-gray-200 px-4 py-3">
                     <p className="font-medium text-gray-900">{unit.farmName}</p>
-                    <p className="mt-0.5 text-xs text-gray-400">{unit.placementLabel}</p>
                   </td>
+                  <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{unit.placementDate.replaceAll('-', '.')}</td>
                   <td className="border-b border-gray-200 px-4 py-3 text-right text-gray-700">{unit.headCount.toLocaleString('ko-KR')}두</td>
                   <td className="border-b border-gray-200 px-4 py-3 text-right text-gray-700">{unit.linkedProductCount}개</td>
                   <td className="border-b border-gray-200 px-4 py-3"><BreedingStatusBadge status={unit.breedingStatus} /></td>
