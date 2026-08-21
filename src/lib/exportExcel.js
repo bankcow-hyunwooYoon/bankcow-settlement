@@ -235,9 +235,6 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
     '사료비 배분 합계(사료비+조사료비)': Number(record.사료비총액) + Number(record.조사료비총액 ?? 0),
     '관리비 총액': record.관리비총액,
     '사료관리비 합계': Number(record.사료비총액) + Number(record.조사료비총액 ?? 0) + Number(record.관리비총액),
-    '첨부파일 수': record.첨부파일?.length ?? 0,
-    첨부파일명: record.첨부파일?.map((attachment) => attachment.name).join('\n') || '-',
-    상태: record.상태,
     등록일시: record.등록일시,
   }))
 
@@ -361,7 +358,7 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
 
   const workbook = XLSX.utils.book_new()
 
-  const summaryHeaders = ['정산월', '사료비 총액', '조사료비 총액', '사료비 배분 합계(사료비+조사료비)', '관리비 총액', '사료관리비 합계', '첨부파일 수', '첨부파일명', '상태', '등록일시']
+  const summaryHeaders = ['정산월', '사료비 총액', '조사료비 총액', '사료비 배분 합계(사료비+조사료비)', '관리비 총액', '사료관리비 합계', '등록일시']
   const summarySheet = XLSX.utils.aoa_to_sheet([
     ['월별 사료관리비 요약'],
     summaryHeaders,
@@ -372,10 +369,9 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
     lastColumn: 9,
     dataRowCount: summaryRows.length,
     headerFills: ['F2F2F2', 'D9EAF7', 'D9EAF7', 'D9EAF7', 'E2F0D9', 'D9EAD3', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2'],
-    numericColumns: [1, 2, 3, 4, 5, 6],
-    columnWidths: [14, 15, 15, 28, 15, 17, 12, 36, 10, 18],
+    numericColumns: [1, 2, 3, 4, 5],
+    columnWidths: [14, 15, 15, 28, 15, 17, 18],
     freeze: { xSplit: 1, ySplit: 2, topLeftCell: 'B3', activePane: 'bottomRight', state: 'frozen' },
-    wrapColumns: [7],
   })
   XLSX.utils.book_append_sheet(workbook, summarySheet, '월별 요약')
 

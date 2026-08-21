@@ -4,9 +4,11 @@ import SettlementDetailScreen from './screens/SettlementDetailScreen.jsx'
 import BreedingUnitListScreen from './screens/BreedingUnitListScreen.jsx'
 import { getSelectableMonths, upsertRecord } from './lib/records.js'
 import { BREEDING_UNITS } from './lib/breedingUnits.js'
+import { ACTIVE_INVESTMENT_PRODUCTS } from './lib/investmentProducts.js'
 
 export default function App() {
   const [screen, setScreen] = useState('units')
+  const [units, setUnits] = useState(BREEDING_UNITS)
   const [recordsByUnit, setRecordsByUnit] = useState(() =>
     Object.fromEntries(BREEDING_UNITS.map((unit) => [unit.id, unit.initialRecords])),
   )
@@ -40,7 +42,7 @@ export default function App() {
     window.history.back()
   }
 
-  const selectedUnit = BREEDING_UNITS.find((unit) => unit.id === selectedUnitId) ?? BREEDING_UNITS[0]
+  const selectedUnit = units.find((unit) => unit.id === selectedUnitId) ?? units[0]
   const records = recordsByUnit[selectedUnit.id] ?? []
 
   if (screen === 'register') {
@@ -74,8 +76,35 @@ export default function App() {
   }
 
   if (screen === 'units') {
-    const unitsWithRecords = BREEDING_UNITS.map((unit) => ({ ...unit, records: recordsByUnit[unit.id] ?? [] }))
-    return <BreedingUnitListScreen units={unitsWithRecords} onSelectUnit={(unit) => navigate('list', null, unit.id)} />
+    const unitsWithRecords = units.map((unit) => ({ ...unit, records: recordsByUnit[unit.id] ?? [] }))
+    const connectedProductIds = new Set(units.flatMap((unit) => unit.linkedProductIds ?? []))
+    const availableProducts = ACTIVE_INVESTMENT_PRODUCTS.filter((product) => !connectedProductIds.has(product.id))
+    return (
+      <BreedingUnitListScreen
+        units={unitsWithRecords}
+        availableProducts={availableProducts}
+        onSelectUnit={(unit) => navigate('list', null, unit.id)}
+        onCreateUnit={({ farmName, products }) => {
+          const placementDate = products.reduce(
+            (earliest, product) => (product.placementDate < earliest ? product.placementDate : earliest),
+            products[0].placementDate,
+          )
+          const id = `unit-manual-${Date.now()}`
+          const newUnit = {
+            id,
+            farmName,
+            placementDate,
+            headCount: products.reduce((sum, product) => sum + product.headCount, 0),
+            linkedProductCount: products.length,
+            linkedProductIds: products.map((product) => product.id),
+            breedingStatus: '사육중',
+            initialRecords: [],
+          }
+          setUnits((prev) => [newUnit, ...prev])
+          setRecordsByUnit((prev) => ({ ...prev, [id]: [] }))
+        }}
+      />
+    )
   }
 
   return (
