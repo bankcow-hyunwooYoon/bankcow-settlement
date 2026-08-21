@@ -81,8 +81,8 @@ function FarmRegistrationModal({ products, onClose, onCreate }) {
                   <label key={product.id} className={`flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0 ${checked ? 'bg-emerald-50/60' : 'hover:bg-gray-50'}`}>
                     <input type="checkbox" checked={checked} onChange={() => toggleProduct(product.id)} className="h-4 w-4 accent-gray-900" />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-gray-800">{product.productName}</span>
-                      <span className="mt-0.5 block text-xs text-gray-400">{product.productCode} <span className="mx-1 text-gray-300">|</span> 입식일 {product.placementDate.replaceAll('-', '.')}</span>
+                      <span className="block text-sm font-medium text-gray-800">{product.productName}호</span>
+                      <span className="mt-0.5 block text-xs text-gray-400">최초 입식일 {product.placementDate.replaceAll('-', '.')}</span>
                     </span>
                     <span className="text-xs font-medium text-gray-600">{product.headCount}두</span>
                   </label>
