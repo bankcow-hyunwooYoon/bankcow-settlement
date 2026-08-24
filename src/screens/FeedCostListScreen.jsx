@@ -119,7 +119,7 @@ function FeedCostTable({ records, onEdit, selectedMonths, onToggleMonth, onToggl
   )
 }
 
-function ExportModal({ open, deathRate, deathCount, headCount, includeGuarantee, onToggleGuarantee, onClose, onExport, isExporting }) {
+function ExportModal({ open, deathRate, deathCount, headCount, includeGuarantee, onToggleGuarantee, onClose, onExport, isExporting, exportError }) {
   if (!open) return null
   const isBlockedByDeathRate = deathRate >= 0.01
   const rateLabel = `${(deathRate * 100).toFixed(1)}%`
@@ -157,6 +157,7 @@ function ExportModal({ open, deathRate, deathCount, headCount, includeGuarantee,
             </button>
           </div>
           <p className="text-[11px] text-gray-400">보증금은 월별 사료비·관리비에는 포함되지 않고, 최종 실제 투입원가에만 별도 반영됩니다.</p>
+          {exportError && <p role="alert" className="border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">엑셀 파일을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>}
         </div>
         <div className="flex justify-end gap-2 border-t border-gray-200 px-5 py-3">
           <button type="button" onClick={onClose} disabled={isExporting} className="px-3 py-2 text-xs font-medium text-gray-500 hover:text-gray-900">취소</button>
@@ -175,6 +176,7 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
   const [showExportModal, setShowExportModal] = useState(false)
   const [includeFarmManagementGuarantee, setIncludeFarmManagementGuarantee] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState(false)
   const [isDownloadingAttachments, setIsDownloadingAttachments] = useState(false)
   const [selectedMonths, setSelectedMonths] = useState([])
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
@@ -227,14 +229,22 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
 
   const handleExport = () => {
     setIncludeFarmManagementGuarantee(guaranteeStatus.isEligibleByDeathRate)
+    setExportError(false)
     setShowExportModal(true)
   }
 
   const handleConfirmExport = async () => {
     setIsExporting(true)
-    await exportToExcel(visibleRecords, unit, { includeFarmManagementGuarantee })
-    setIsExporting(false)
-    setShowExportModal(false)
+    setExportError(false)
+    try {
+      await exportToExcel(visibleRecords, unit, { includeFarmManagementGuarantee })
+      setShowExportModal(false)
+    } catch (error) {
+      console.error('엑셀 내보내기 실패', error)
+      setExportError(true)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   const handleDownloadAttachments = async () => {
@@ -350,6 +360,7 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
         onClose={() => setShowExportModal(false)}
         onExport={handleConfirmExport}
         isExporting={isExporting}
+        exportError={exportError}
       />
     </div>
   )

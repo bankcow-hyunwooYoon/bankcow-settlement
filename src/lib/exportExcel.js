@@ -165,28 +165,34 @@ function applyComparisonSheetStyle(sheet, dataRowCount) {
 /** 소별 상세에서 이탈 상태를 행과 상태 셀에 함께 강조한다. */
 function applyExitStatusHighlights(sheet, detailDataRows) {
   detailDataRows.forEach((cattle, index) => {
-    const style = cattle.상태 === '폐사'
-      ? { row: 'FDE9E7', strong: 'C00000' }
-      : cattle.상태 === '조기출하'
-        ? { row: 'FCE4D6', strong: 'C65911' }
-        : cattle.상태 === '정상출하'
-          ? { row: 'E2F0D9', strong: '548235' }
-        : null
+    const style = cattle.이전이탈여부
+      // 이탈한 달이 지난 행은 0원·배분 제외 상태이므로 회색으로 표시한다.
+      ? { row: 'F3F4F6', strong: 'E5E7EB', strongText: '6B7280' }
+      : cattle.상태 === '폐사'
+        ? { row: 'FDE9E7', strong: 'C00000' }
+        : cattle.상태 === '조기출하'
+          ? { row: 'FCE4D6', strong: 'C65911' }
+          : cattle.상태 === '정상출하'
+            // 정상출하는 기본 상태이므로 행 전체를 칠하지 않고 상태 셀만 태그처럼 강조한다.
+            ? { row: null, strong: '548235' }
+            : null
     if (!style) return
 
     const row = index + 2
     for (let col = 0; col <= 13; col += 1) {
       const cell = sheet[XLSX.utils.encode_cell({ r: row, c: col })]
-      cell.s = {
-        ...(cell.s ?? {}),
-        fill: { fgColor: { rgb: style.row } },
+      if (style.row) {
+        cell.s = {
+          ...(cell.s ?? {}),
+          fill: { fgColor: { rgb: style.row } },
+        }
       }
     }
     const statusCell = sheet[XLSX.utils.encode_cell({ r: row, c: 5 })]
     statusCell.s = {
       ...(statusCell.s ?? {}),
       fill: { fgColor: { rgb: style.strong } },
-      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      font: { bold: true, color: { rgb: style.strongText ?? 'FFFFFF' } },
       alignment: { horizontal: 'center', vertical: 'center' },
     }
   })
@@ -262,6 +268,8 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
           이탈월: exitMonth ?? '-',
           이탈일: exitDay ? `${exitDay}일` : '-',
           배분상태: isPastExit ? '이전 이탈 · 배분 제외' : '배분 대상',
+          // 이탈월 행과 이후 0원 행의 색상을 구분하기 위한 시트 내부 값이다.
+          이전이탈여부: Boolean(isPastExit),
           '사료비 사육일수': cattle.사료비사육일수,
           '사료비 금액': cattle.사료비금액,
           '관리비 사육일수': cattle.관리비사육일수,
@@ -368,9 +376,9 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
   ])
   applyStandardSheetStyle(summarySheet, {
     title: '월별 사료관리비 요약',
-    lastColumn: 9,
+    lastColumn: 6,
     dataRowCount: summaryRows.length,
-    headerFills: ['F2F2F2', 'D9EAF7', 'D9EAF7', 'D9EAF7', 'E2F0D9', 'D9EAD3', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2'],
+    headerFills: ['F2F2F2', 'D9EAF7', 'D9EAF7', 'D9EAF7', 'E2F0D9', 'D9EAD3', 'F2F2F2'],
     numericColumns: [1, 2, 3, 4, 5],
     columnWidths: [14, 15, 15, 28, 15, 17, 18],
     freeze: { xSplit: 1, ySplit: 2, topLeftCell: 'B3', activePane: 'bottomRight', state: 'frozen' },
