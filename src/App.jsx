@@ -4,7 +4,7 @@ import SettlementDetailScreen from './screens/SettlementDetailScreen.jsx'
 import BreedingUnitListScreen from './screens/BreedingUnitListScreen.jsx'
 import { getSelectableMonths, upsertRecord } from './lib/records.js'
 import { BREEDING_UNITS } from './lib/breedingUnits.js'
-import { ACTIVE_INVESTMENT_PRODUCTS } from './lib/investmentProducts.js'
+import { ACTIVE_INVESTMENT_PRODUCTS, INVESTMENT_PRODUCTS } from './lib/investmentProducts.js'
 
 export default function App() {
   const [screen, setScreen] = useState('units')
@@ -83,6 +83,7 @@ export default function App() {
       <BreedingUnitListScreen
         units={unitsWithRecords}
         availableProducts={availableProducts}
+        productCatalog={INVESTMENT_PRODUCTS}
         onSelectUnit={(unit) => navigate('list', null, unit.id)}
         onCreateUnit={({ farmName, products }) => {
           const placementDate = products.reduce(
@@ -103,6 +104,28 @@ export default function App() {
           setUnits((prev) => [newUnit, ...prev])
           setRecordsByUnit((prev) => ({ ...prev, [id]: [] }))
         }}
+        onUpdateUnit={(unit, { farmName, products }, { deleteRecords }) => {
+          setUnits((previous) => previous.map((item) => {
+            if (item.id !== unit.id) return item
+            // 경매완료 건의 이름 수정처럼 상품 선택이 없을 때는 기존 연결 정보를 보존한다.
+            if (products.length === 0) return { ...item, farmName }
+            const placementDate = products.reduce(
+              (earliest, product) => (product.placementDate < earliest ? product.placementDate : earliest),
+              products[0].placementDate,
+            )
+            return {
+              ...item,
+              farmName,
+              placementDate,
+              headCount: products.reduce((sum, product) => sum + product.headCount, 0),
+              linkedProductCount: products.length,
+              linkedProductIds: products.map((product) => product.id),
+            }
+          }))
+          if (deleteRecords) {
+            setRecordsByUnit((previous) => ({ ...previous, [unit.id]: [] }))
+          }
+        }}
       />
     )
   }
@@ -116,6 +139,13 @@ export default function App() {
       }}
       onEditRecord={(record) => {
         navigate('register', record)
+      }}
+      onDeleteRecords={(settlementMonths) => {
+        const monthsToDelete = new Set(settlementMonths)
+        setRecordsByUnit((prev) => ({
+          ...prev,
+          [selectedUnit.id]: (prev[selectedUnit.id] ?? []).filter((record) => !monthsToDelete.has(record.정산월)),
+        }))
       }}
     />
   )

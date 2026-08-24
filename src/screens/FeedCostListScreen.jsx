@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import CattleStatusSummary from '../components/CattleStatusSummary.jsx'
 import { formatWon } from '../lib/format.js'
 import { STATUS_CONFIRMED } from '../lib/records.js'
@@ -49,12 +49,22 @@ function ExportButton({ disabled, onClick }) {
   )
 }
 
-function FeedCostTable({ records, onEdit }) {
+function FeedCostTable({ records, onEdit, selectedMonths, onToggleMonth, onToggleAll }) {
+  const isAllSelected = records.length > 0 && records.every((record) => selectedMonths.includes(record.정산월))
   return (
     <div className="overflow-hidden border border-gray-200 bg-white">
       <table className="w-full text-left text-[13px]">
         <thead>
           <tr className="bg-gray-50 text-gray-500">
+            <th className="w-11 border-b border-gray-200 px-4 py-2.5">
+              <input
+                type="checkbox"
+                aria-label="전체 선택"
+                checked={isAllSelected}
+                onChange={(event) => onToggleAll(event.target.checked)}
+                className="h-3.5 w-3.5 accent-gray-900"
+              />
+            </th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">정산월</th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">사료비 총액</th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">조사료비 총액</th>
@@ -72,6 +82,15 @@ function FeedCostTable({ records, onEdit }) {
               onClick={() => onEdit(record)}
               className="cursor-pointer transition-colors hover:bg-gray-100"
             >
+              <td className="border-b border-gray-200 px-4 py-2.5" onClick={(event) => event.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  aria-label={`${record.정산월} 선택`}
+                  checked={selectedMonths.includes(record.정산월)}
+                  onChange={(event) => onToggleMonth(record.정산월, event.target.checked)}
+                  className="h-3.5 w-3.5 accent-gray-900"
+                />
+              </td>
               <td className="border-b border-gray-200 px-4 py-2.5 text-gray-900">{record.정산월}</td>
               <td className="border-b border-gray-200 px-4 py-2.5 text-gray-700">
                 {formatWon(record.사료비총액)}
@@ -150,22 +169,30 @@ function ExportModal({ open, deathRate, deathCount, headCount, includeGuarantee,
   )
 }
 
-export default function FeedCostListScreen({ records, unit, onNavigateToRegister, onEditRecord }) {
+export default function FeedCostListScreen({ records, unit, onNavigateToRegister, onEditRecord, onDeleteRecords }) {
   const [showEmpty, setShowEmpty] = useState(false)
   const [showNoMonthDialog, setShowNoMonthDialog] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [includeFarmManagementGuarantee, setIncludeFarmManagementGuarantee] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isDownloadingAttachments, setIsDownloadingAttachments] = useState(false)
+  const [selectedMonths, setSelectedMonths] = useState([])
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
   const visibleRecords = showEmpty ? [] : records
   const latestRecord = sortRecordsByMonthDesc(records)[0]
   const exitedCattle = latestRecord ? getExceptionCattle(latestRecord.정산월, unit.farmName, unit.id) : []
   const deadCount = exitedCattle.filter((cattle) => cattle.status === '폐사').length
   const earlyCount = exitedCattle.filter((cattle) => cattle.status === '조기출하').length
+  const shippedCount = exitedCattle.filter((cattle) => cattle.status === '정상출하').length
   const guaranteeStatus = getFarmManagementGuaranteeStatus(unit)
 
   const hasConfirmed = visibleRecords.some((r) => r.상태 === STATUS_CONFIRMED)
   const hasAttachments = visibleRecords.some((r) => r.첨부파일?.length)
+
+  useEffect(() => {
+    const existingMonths = new Set(records.map((record) => record.정산월))
+    setSelectedMonths((previous) => previous.filter((month) => existingMonths.has(month)))
+  }, [records])
 
   const handleRegister = () => {
     const hasAvailableMonth = unit.breedingStatus !== '정산완료'
@@ -180,6 +207,22 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
   const handleEdit = (record) => {
     console.log('수정 클릭', record)
     onEditRecord(record)
+  }
+
+  const handleToggleMonth = (settlementMonth, checked) => {
+    setSelectedMonths((previous) => (
+      checked ? [...previous, settlementMonth] : previous.filter((month) => month !== settlementMonth)
+    ))
+  }
+
+  const handleToggleAll = (checked) => {
+    setSelectedMonths(checked ? visibleRecords.map((record) => record.정산월) : [])
+  }
+
+  const handleBulkDelete = () => {
+    onDeleteRecords(selectedMonths)
+    setSelectedMonths([])
+    setShowBulkDeleteDialog(false)
   }
 
   const handleExport = () => {
@@ -226,6 +269,7 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
                 normal={unit.headCount - exitedCattle.length}
                 dead={deadCount}
                 early={earlyCount}
+                shipped={shippedCount}
                 normalLabel={unit.breedingStatus === '정산완료' ? '정상출하' : '사육중'}
               />
             </div>
@@ -234,6 +278,18 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={selectedMonths.length === 0}
+              onClick={() => setShowBulkDeleteDialog(true)}
+              className={`rounded border px-3 py-1.5 text-xs font-medium ${
+                selectedMonths.length > 0
+                  ? 'border-red-200 bg-white text-red-700 hover:bg-red-50'
+                  : 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+              }`}
+            >
+              선택 삭제{selectedMonths.length > 0 ? ` (${selectedMonths.length})` : ''}
+            </button>
             <ExportButton disabled={!hasConfirmed} onClick={handleExport} />
             <button
               type="button"
@@ -260,7 +316,13 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
         {visibleRecords.length === 0 ? (
           <EmptyState onRegister={handleRegister} />
         ) : (
-          <FeedCostTable records={visibleRecords} onEdit={handleEdit} />
+          <FeedCostTable
+            records={visibleRecords}
+            onEdit={handleEdit}
+            selectedMonths={selectedMonths}
+            onToggleMonth={handleToggleMonth}
+            onToggleAll={handleToggleAll}
+          />
         )}
       </div>
       <ConfirmDialog
@@ -270,6 +332,13 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
         onConfirm={() => setShowNoMonthDialog(false)}
         confirmLabel="확인"
         hideCancel
+      />
+      <ConfirmDialog
+        open={showBulkDeleteDialog}
+        message={`선택한 사료관리비 ${selectedMonths.length}건을 삭제하시겠습니까? 삭제한 정산월은 다시 등록할 수 있습니다.`}
+        onCancel={() => setShowBulkDeleteDialog(false)}
+        onConfirm={handleBulkDelete}
+        confirmLabel="삭제"
       />
       <ExportModal
         open={showExportModal}

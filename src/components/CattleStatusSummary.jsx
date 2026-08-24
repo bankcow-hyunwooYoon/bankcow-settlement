@@ -2,10 +2,11 @@ const STATUS_META = [
   { key: 'normal', label: '사육중', dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
   { key: 'dead', label: '폐사', dot: 'bg-gray-500', badge: 'bg-gray-100 text-gray-700 ring-gray-500/20' },
   { key: 'early', label: '조기출하', dot: 'bg-orange-500', badge: 'bg-orange-50 text-orange-700 ring-orange-600/20' },
+  { key: 'shipped', label: '정상출하', dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' },
 ]
 
-export default function CattleStatusSummary({ normal, dead, early, normalLabel = '사육중' }) {
-  const counts = { normal, dead, early }
+export default function CattleStatusSummary({ normal, dead, early, shipped = 0, normalLabel = '사육중' }) {
+  const counts = { normal, dead, early, shipped }
   return (
     <div className="flex items-center gap-1.5">
       {STATUS_META.map((item) => (

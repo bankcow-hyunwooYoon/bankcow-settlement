@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import PrototypeDateBadge from '../components/PrototypeDateBadge.jsx'
+import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { now } from '../lib/prototypeDate.js'
 
 const FILTERS = [
@@ -38,21 +39,23 @@ function InputProgress({ unit }) {
   return <span className={`text-xs ${classes}`}>{completedMonths} / {totalMonths}개월</span>
 }
 
-function FarmRegistrationModal({ products, onClose, onCreate }) {
-  const [farmName, setFarmName] = useState('')
-  const [selectedIds, setSelectedIds] = useState([])
+function FarmRegistrationModal({ products, unit, onClose, onSubmit }) {
+  const isEdit = Boolean(unit)
+  const isCompleted = unit?.breedingStatus === '정산완료'
+  const [farmName, setFarmName] = useState(unit?.farmName ?? '')
+  const [selectedIds, setSelectedIds] = useState(unit?.linkedProductIds ?? [])
   const selectedProducts = products.filter((product) => selectedIds.includes(product.id))
   const toggleProduct = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]))
   }
-  const canSubmit = farmName.trim().length > 0 && selectedProducts.length > 0
+  const canSubmit = farmName.trim().length > 0 && (isCompleted || selectedProducts.length > 0)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="farm-registration-title">
       <div className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-hidden bg-white shadow-xl">
         <div className="border-b border-gray-200 px-5 py-4">
-          <h2 id="farm-registration-title" className="text-base font-semibold text-gray-900">농장 등록</h2>
-          <p className="mt-1 text-xs text-gray-500">농장명과 연결할 진행 중 투자상품을 선택해 주세요.</p>
+          <h2 id="farm-registration-title" className="text-base font-semibold text-gray-900">{isEdit ? '농장 정보 수정' : '농장 등록'}</h2>
+          <p className="mt-1 text-xs text-gray-500">{isEdit ? '사육 단위명과 연결 투자상품을 수정합니다.' : '농장명과 연결할 진행 중 투자상품을 선택해 주세요.'}</p>
         </div>
         <div className="max-h-[calc(100vh-12rem)] overflow-y-auto p-5">
           <label htmlFor="farm-name" className="mb-1.5 block text-xs font-medium text-gray-700">농장명</label>
@@ -79,9 +82,9 @@ function FarmRegistrationModal({ products, onClose, onCreate }) {
                 const checked = selectedIds.includes(product.id)
                 return (
                   <label key={product.id} className={`flex cursor-pointer items-center gap-3 border-b border-gray-100 px-4 py-3 last:border-b-0 ${checked ? 'bg-emerald-50/60' : 'hover:bg-gray-50'}`}>
-                    <input type="checkbox" checked={checked} onChange={() => toggleProduct(product.id)} className="h-4 w-4 accent-gray-900" />
+                    <input type="checkbox" checked={checked} disabled={isCompleted} onChange={() => toggleProduct(product.id)} className="h-4 w-4 accent-gray-900 disabled:cursor-not-allowed" />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-gray-800">{product.productName}호</span>
+                      <span className="block text-sm font-medium text-gray-800">{product.productName}호 <span className="ml-1 font-normal text-gray-500">· {product.farmName}</span></span>
                       <span className="mt-0.5 block text-xs text-gray-400">최초 입식일 {product.placementDate.replaceAll('-', '.')}</span>
                     </span>
                     <span className="text-xs font-medium text-gray-600">{product.headCount}두</span>
@@ -93,25 +96,44 @@ function FarmRegistrationModal({ products, onClose, onCreate }) {
           {selectedProducts.length > 0 && (
             <p className="mt-2 text-xs text-gray-500">연결 후 사육 두수: <span className="font-medium text-gray-800">{selectedProducts.reduce((sum, product) => sum + product.headCount, 0)}두</span> · 최초 입식일: <span className="font-medium text-gray-800">{selectedProducts.reduce((earliest, product) => (product.placementDate < earliest ? product.placementDate : earliest), selectedProducts[0].placementDate).replaceAll('-', '.')}</span></p>
           )}
+          {isCompleted && <p className="mt-3 text-xs text-gray-500">경매완료된 농장은 사육 단위명만 수정할 수 있습니다.</p>}
         </div>
         <div className="flex justify-end gap-2 border-t border-gray-200 px-5 py-4">
           <button type="button" onClick={onClose} className="border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">취소</button>
-          <button type="button" disabled={!canSubmit} onClick={() => onCreate({ farmName: farmName.trim(), products: selectedProducts })} className="bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:bg-gray-300">등록</button>
+          <button type="button" disabled={!canSubmit} onClick={() => onSubmit({ farmName: farmName.trim(), products: selectedProducts })} className="bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:bg-gray-300">{isEdit ? '저장' : '등록'}</button>
         </div>
       </div>
     </div>
   )
 }
 
-export default function BreedingUnitListScreen({ units, availableProducts, onSelectUnit, onCreateUnit }) {
+export default function BreedingUnitListScreen({ units, availableProducts, productCatalog, onSelectUnit, onCreateUnit, onUpdateUnit }) {
   const [filter, setFilter] = useState('사육중')
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false)
+  const [editingUnit, setEditingUnit] = useState(null)
+  const [pendingUpdate, setPendingUpdate] = useState(null)
   const visibleUnits = useMemo(
     () => units
       .filter((unit) => filter === '전체' || unit.breedingStatus === filter)
       .sort((a, b) => b.placementDate.localeCompare(a.placementDate)),
     [filter, units],
   )
+  const editableProducts = editingUnit
+    ? productCatalog.filter((product) => !units.some((unit) => unit.id !== editingUnit.id && unit.linkedProductIds?.includes(product.id)))
+    : availableProducts
+
+  const handleEditSubmit = (payload) => {
+    const previousIds = [...(editingUnit.linkedProductIds ?? [])].sort().join(',')
+    const nextIds = payload.products.map((product) => product.id).sort().join(',')
+    const productsChanged = previousIds !== nextIds
+    if (productsChanged && editingUnit.records.length > 0) {
+      setPendingUpdate({ unit: editingUnit, payload })
+      setEditingUnit(null)
+      return
+    }
+    onUpdateUnit(editingUnit, payload, { deleteRecords: false })
+    setEditingUnit(null)
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 px-8 py-8">
@@ -152,6 +174,7 @@ export default function BreedingUnitListScreen({ units, availableProducts, onSel
                 <th className="border-b border-gray-200 px-4 py-2.5 font-medium text-right">연결 상품 수</th>
                 <th className="border-b border-gray-200 px-4 py-2.5 font-medium">상태</th>
                 <th className="border-b border-gray-200 px-4 py-2.5 font-medium">입력 현황</th>
+                <th className="border-b border-gray-200 px-4 py-2.5 font-medium text-center">관리</th>
               </tr>
             </thead>
             <tbody>
@@ -169,6 +192,9 @@ export default function BreedingUnitListScreen({ units, availableProducts, onSel
                   <td className="border-b border-gray-200 px-4 py-3 text-right text-gray-700">{unit.linkedProductCount}개</td>
                   <td className="border-b border-gray-200 px-4 py-3"><BreedingStatusBadge status={unit.breedingStatus} /></td>
                   <td className="border-b border-gray-200 px-4 py-3"><InputProgress unit={unit} /></td>
+                  <td className="border-b border-gray-200 px-4 py-3 text-center" onClick={(event) => event.stopPropagation()}>
+                    <button type="button" onClick={() => setEditingUnit(unit)} className="border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50">수정</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -179,13 +205,32 @@ export default function BreedingUnitListScreen({ units, availableProducts, onSel
           <FarmRegistrationModal
             products={availableProducts}
             onClose={() => setIsRegistrationOpen(false)}
-            onCreate={(payload) => {
+            onSubmit={(payload) => {
               onCreateUnit(payload)
               setIsRegistrationOpen(false)
             }}
           />
         )}
+        {editingUnit && (
+          <FarmRegistrationModal
+            key={editingUnit.id}
+            unit={editingUnit}
+            products={editableProducts}
+            onClose={() => setEditingUnit(null)}
+            onSubmit={handleEditSubmit}
+          />
+        )}
       </div>
+      <ConfirmDialog
+        open={Boolean(pendingUpdate)}
+        message={`연결 상품을 변경하면 기존에 확정한 사료관리비 ${pendingUpdate?.unit.records.length ?? 0}건과 첨부파일이 모두 삭제됩니다. 변경 후 새 기준으로 다시 입력해야 합니다.`}
+        onCancel={() => setPendingUpdate(null)}
+        onConfirm={() => {
+          onUpdateUnit(pendingUpdate.unit, pendingUpdate.payload, { deleteRecords: true })
+          setPendingUpdate(null)
+        }}
+        confirmLabel="변경 및 정산 삭제"
+      />
     </div>
   )
 }

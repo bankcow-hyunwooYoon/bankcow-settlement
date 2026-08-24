@@ -42,7 +42,7 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
               <div className="flex items-center gap-3">
                 <CattleStatusBadge status={cattle.status} />
                 <span className="text-gray-500">
-                  사고일 {settlementMonth} {cattle.exitDay}일
+                  이탈일 {settlementMonth} {cattle.exitDay}일
                 </span>
               </div>
             </div>

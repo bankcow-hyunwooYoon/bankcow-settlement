@@ -22,9 +22,9 @@ export function toCattleDetails(rows) {
     생년월일: row.birthDate,
     개월령: row.ageInMonths,
     상태: row.status,
-    사고월: row.exitMonth,
-    사고일: row.exitDay,
-    이전사고여부: row.isPastExit,
+    이탈월: row.exitMonth,
+    이탈일: row.exitDay,
+    이전이탈여부: row.isPastExit,
     사료비사육일수: row.feedDays,
     사료비금액: row.feedAmount,
     관리비사육일수: row.mgmtDays,
@@ -63,7 +63,7 @@ export function buildRecord({ 정산월, 사료비총액, 조사료비총액 = 0
   }
 }
 
-/** 사고 개체를 위로, 그 아래 사육중 개체를 개체 번호 순으로 정렬한다. */
+/** 이탈 개체를 위로, 그 아래 사육중 개체를 개체 번호 순으로 정렬한다. */
 export function sortRows(rows) {
   const exceptions = rows.filter((r) => r.status !== '사육중').sort((a, b) => a.no - b.no)
   const normals = rows.filter((r) => r.status === '사육중').sort((a, b) => a.no - b.no)

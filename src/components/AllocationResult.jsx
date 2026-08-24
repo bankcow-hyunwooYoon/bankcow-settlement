@@ -69,7 +69,7 @@ function AllocationTable({ rows, totals }) {
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">생년월일</th>
             <th className="border-b border-gray-200 px-4 py-2.5 text-right font-medium">개월령</th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">상태</th>
-            <th className="border-b border-gray-200 px-4 py-2.5 text-right font-medium">사고일</th>
+            <th className="border-b border-gray-200 px-4 py-2.5 text-right font-medium">이탈일</th>
             <th className="border-b border-gray-200 px-4 py-2.5 text-right font-medium">사료비 사육일수</th>
             <th className="border-b border-gray-200 px-4 py-2.5 text-right font-medium">사료비 금액</th>
             <th className="border-b border-gray-200 px-4 py-2.5 text-right font-medium">관리비 사육일수</th>
@@ -80,13 +80,15 @@ function AllocationTable({ rows, totals }) {
         </thead>
         <tbody>
           {rows.map((row) => {
-            const isException = row.status === '폐사' || row.status === '조기출하'
+            const isExit = row.status !== '사육중'
             const rowBg = row.isPastExit
               ? 'bg-gray-50 text-gray-400 hover:bg-gray-100'
               : row.status === '폐사'
                 ? 'bg-red-50/70 hover:bg-red-50'
                 : row.status === '조기출하'
                   ? 'bg-orange-50/70 hover:bg-orange-50'
+                  : row.status === '정상출하'
+                    ? 'bg-emerald-50/70 hover:bg-emerald-50'
                   : 'hover:bg-gray-50'
             return (
               <tr key={row.id} className={rowBg}>
@@ -102,7 +104,7 @@ function AllocationTable({ rows, totals }) {
                   <CattleStatusBadge status={row.displayStatus ?? row.status} muted={row.isPastExit} />
                 </td>
                 <td className={`border-b border-gray-200 px-4 py-2.5 text-right ${row.isPastExit ? 'text-gray-400' : 'text-gray-700'}`}>
-                  {isException ? `${row.exitMonth} ${row.exitDay}일` : '-'}
+                  {isExit ? `${row.exitMonth} ${row.exitDay}일` : '-'}
                 </td>
                 <td className={`border-b border-gray-200 px-4 py-2.5 text-right ${row.isPastExit ? 'text-gray-400' : 'text-gray-700'}`}>
                   {row.feedDays}일

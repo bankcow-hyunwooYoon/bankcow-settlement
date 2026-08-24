@@ -34,7 +34,7 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
       >
         <span className="text-xs font-medium text-gray-700">
-          {monthLabel ? `${monthLabel}월 기준 사고 개체` : '이번 달 사고 개체'}
+          {monthLabel ? `${monthLabel}월 기준 이탈 개체` : '이번 달 이탈 개체'}
           <span className="ml-1.5 text-gray-400">{cattleList.length}두</span>
         </span>
         <span className="text-xs text-gray-400">{isOpen ? '⌃ 접기' : '⌄ 펼치기'}</span>
@@ -42,7 +42,7 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
       {isOpen && (
         <div className="border-t border-gray-200">
           {cattleList.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-gray-500">사고 개체가 없습니다</p>
+            <p className="px-4 py-3 text-sm text-gray-500">이탈 개체가 없습니다</p>
           ) : (
             <div className="divide-y divide-gray-100">
           {cattleList.map((cattle) => (
@@ -53,7 +53,9 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
                   ? 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                   : cattle.status === '폐사'
                     ? 'bg-red-50/70 text-gray-900 hover:bg-red-50'
-                    : 'bg-orange-50/70 text-gray-900 hover:bg-orange-50'
+                    : cattle.status === '조기출하'
+                      ? 'bg-orange-50/70 text-gray-900 hover:bg-orange-50'
+                      : 'bg-emerald-50/70 text-gray-900 hover:bg-emerald-50'
               }`}
             >
               <span className="flex items-center gap-2 font-medium">
@@ -62,7 +64,7 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
               <div className="flex items-center gap-3">
                 <CattleStatusBadge status={cattle.status} muted={cattle.isPastExit} />
                 <span className={cattle.isPastExit ? 'text-gray-400' : 'text-gray-500'}>
-                  사고일 {cattle.exitMonth} {cattle.exitDay}일
+                  이탈일 {cattle.exitMonth} {cattle.exitDay}일
                 </span>
                 {cattle.isPastExit && <span className="text-gray-400">이번 달 배분 제외</span>}
               </div>
@@ -207,6 +209,7 @@ export default function SettlementDetailScreen({
   )
   const deadCount = exceptionCattle.filter((cattle) => cattle.status === '폐사').length
   const earlyCount = exceptionCattle.filter((cattle) => cattle.status === '조기출하').length
+  const shippedCount = exceptionCattle.filter((cattle) => cattle.status === '정상출하').length
 
   const { totalFeedDays, totalMgmtDays } = useMemo(
     () => calculateTotalDays(daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate),
@@ -316,7 +319,8 @@ export default function SettlementDetailScreen({
             <CattleStatusSummary
               normal={NORMAL_COUNT - exceptionCattle.length}
               dead={deadCount}
-              early={earlyCount}
+                early={earlyCount}
+                shipped={shippedCount}
               normalLabel={unit.breedingStatus === '정산완료' ? '정상출하' : '사육중'}
             />
           </div>

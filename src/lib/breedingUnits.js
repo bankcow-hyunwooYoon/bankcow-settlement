@@ -31,12 +31,16 @@ export const BREEDING_UNITS = [
   {
     id: 'unit-chungman-202606',
     farmName: '충만농장 4호',
-    placementDate: '2026-06-24',
-    placementLabel: '2026.06.24 입식',
+    placementDate: '2026-05-24',
+    placementLabel: '2026.05.24 입식',
     headCount: 50,
     linkedProductCount: 4,
+    linkedProductIds: ['product-4-1', 'product-4-2', 'product-4-3', 'product-4-4'],
     breedingStatus: '사육중',
-    initialRecords: [confirmedRecord('충만농장 4호', 'unit-chungman-202606', '2026-06-24', '2026년 6월', 2700000, 1350000)],
+    initialRecords: [
+      confirmedRecord('충만농장 4호', 'unit-chungman-202606', '2026-05-24', '2026년 6월', 2700000, 1350000),
+      confirmedRecord('충만농장 4호', 'unit-chungman-202606', '2026-05-24', '2026년 7월', 2750000, 1375000),
+    ],
   },
   {
     id: 'unit-cheongjeong-202605',
@@ -45,6 +49,7 @@ export const BREEDING_UNITS = [
     placementLabel: '2026.05 입식',
     headCount: 50,
     linkedProductCount: 3,
+    linkedProductIds: ['product-3-1', 'product-3-2', 'product-3-3'],
     breedingStatus: '사육중',
     initialRecords: [
       confirmedRecord('청정농장 3호', 'unit-cheongjeong-202605', '2026-05-18', '2026년 5월', 2150000, 1075000),
@@ -59,6 +64,7 @@ export const BREEDING_UNITS = [
     placementLabel: '2026.03 입식',
     headCount: 50,
     linkedProductCount: 2,
+    linkedProductIds: ['product-2-1', 'product-2-2'],
     breedingStatus: '사육중',
     initialRecords: [
       confirmedRecord('푸른농장 2호', 'unit-pureun-202603', '2026-03-08', '2026년 3월', 1800000, 900000),

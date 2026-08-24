@@ -162,13 +162,15 @@ function applyComparisonSheetStyle(sheet, dataRowCount) {
   }
 }
 
-/** 소별 상세에서 사고 상태를 행과 상태 셀에 함께 강조한다. */
+/** 소별 상세에서 이탈 상태를 행과 상태 셀에 함께 강조한다. */
 function applyExitStatusHighlights(sheet, detailDataRows) {
   detailDataRows.forEach((cattle, index) => {
     const style = cattle.상태 === '폐사'
       ? { row: 'FDE9E7', strong: 'C00000' }
       : cattle.상태 === '조기출하'
         ? { row: 'FCE4D6', strong: 'C65911' }
+        : cattle.상태 === '정상출하'
+          ? { row: 'E2F0D9', strong: '548235' }
         : null
     if (!style) return
 
@@ -245,10 +247,10 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
     [...record.소별상세]
       .sort((a, b) => cattleNo(a.개체명) - cattleNo(b.개체명))
       .map((cattle) => {
-        // 이미 열린 프로토타입 화면의 이전 저장 데이터도 엑셀에서 사고 정보가 사라지지 않도록 호환한다.
-        const accidentMonth = cattle.사고월 ?? cattle.이탈월
-        const accidentDay = cattle.사고일 ?? cattle.이탈일
-        const isPastAccident = cattle.이전사고여부 ?? cattle.이전이탈여부
+        // 이전 저장 데이터의 사고 필드도 이탈 필드로 읽어 호환한다.
+        const exitMonth = cattle.이탈월 ?? cattle.사고월
+        const exitDay = cattle.이탈일 ?? cattle.사고일
+        const isPastExit = cattle.이전이탈여부 ?? cattle.이전사고여부
         return {
           정산월: record.정산월,
           개체명: cattle.개체명,
@@ -257,9 +259,9 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
           개월령: cattle.개월령 === undefined ? '-' : `${cattle.개월령}개월`,
           // 정산완료 농장은 최종 출하 정산 문서이므로, 사고 이력이 없는 개체를 정상출하로 표시한다.
           상태: unit.breedingStatus === '정산완료' && cattle.상태 === '사육중' ? '정상출하' : cattle.상태,
-          사고월: accidentMonth ?? '-',
-          사고일: accidentDay ? `${accidentDay}일` : '-',
-          배분상태: isPastAccident ? '이전 사고 · 배분 제외' : '배분 대상',
+          이탈월: exitMonth ?? '-',
+          이탈일: exitDay ? `${exitDay}일` : '-',
+          배분상태: isPastExit ? '이전 이탈 · 배분 제외' : '배분 대상',
           '사료비 사육일수': cattle.사료비사육일수,
           '사료비 금액': cattle.사료비금액,
           '관리비 사육일수': cattle.관리비사육일수,
@@ -289,8 +291,8 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
       생년월일: '-',
       개월령: '-',
       상태: '-',
-      사고월: '-',
-      사고일: '-',
+      이탈월: '-',
+      이탈일: '-',
       배분상태: '-',
       '사료비 사육일수': detailTotals.feedDays,
       '사료비 금액': detailTotals.feedAmount,
@@ -375,7 +377,7 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
   })
   XLSX.utils.book_append_sheet(workbook, summarySheet, '월별 요약')
 
-  const detailHeaders = ['정산월', '개체명', '이력번호', '생년월일', '개월령', '상태', '사고월', '사고일', '배분상태', '사료비 사육일수', '사료비 금액', '관리비 사육일수', '관리비 금액', '사료관리비 합계']
+  const detailHeaders = ['정산월', '개체명', '이력번호', '생년월일', '개월령', '상태', '이탈월', '이탈일', '배분상태', '사료비 사육일수', '사료비 금액', '관리비 사육일수', '관리비 금액', '사료관리비 합계']
   const detailSheet = XLSX.utils.aoa_to_sheet([
     ['송아지별 사료관리비 상세'],
     detailHeaders,

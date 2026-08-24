@@ -11,6 +11,7 @@ export const EXIT_HISTORY_BY_UNIT = {
     '2026년 7월': [
       { no: 16, status: '조기출하', exitDay: 13 },
       { no: 42, status: '폐사', exitDay: 27 },
+      ...Array.from({ length: 10 }, (_, index) => ({ no: index + 31, status: '정상출하', exitDay: 25 })),
     ],
   },
   'unit-cheongjeong-202605': {
@@ -39,6 +40,31 @@ export const EXIT_HISTORY_BY_UNIT = {
   },
 }
 
+/**
+ * 개체별 입식일 목업. 같은 사육 단위라도 실제 입식일이 다른 경우를 반영한다.
+ * 실제 API에서는 송아지별 placementDate를 내려주며, 이 목업은 그 데이터를 대신한다.
+ */
+export const PLACEMENT_BATCHES_BY_UNIT = {
+  'unit-chungman-202606': [
+    { from: 1, to: 30, placementDate: '2026-05-24' },
+    { from: 31, to: 50, placementDate: '2026-06-05' },
+  ],
+  'unit-cheongjeong-202605': [
+    { from: 1, to: 25, placementDate: '2026-05-18' },
+    { from: 26, to: 50, placementDate: '2026-06-02' },
+  ],
+  'unit-pureun-202603': [
+    { from: 1, to: 25, placementDate: '2026-03-08' },
+    { from: 26, to: 50, placementDate: '2026-03-18' },
+  ],
+}
+
 export function getExitHistory(unitId) {
   return EXIT_HISTORY_BY_UNIT[unitId] ?? {}
+}
+
+/** 해당 송아지의 실제 입식일. 개별 데이터가 없으면 사육 단위의 최초 입식일을 사용한다. */
+export function getCattlePlacementDate(unitId, cattleNo, fallbackPlacementDate) {
+  const batch = (PLACEMENT_BATCHES_BY_UNIT[unitId] ?? []).find(({ from, to }) => cattleNo >= from && cattleNo <= to)
+  return batch?.placementDate ?? fallbackPlacementDate
 }
