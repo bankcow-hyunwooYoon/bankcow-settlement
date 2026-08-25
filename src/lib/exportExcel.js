@@ -20,12 +20,12 @@ function applyStandardSheetStyle(sheet, {
   hasTotalRow = false,
   wrapColumns = [],
 }) {
-  // 제목 1행 + 헤더 1행 뒤에 데이터가 시작하므로, 마지막 데이터 행은 2를 더한다.
-  const lastDataRow = 2 + dataRowCount
+  // XLSX 행 인덱스는 0부터 시작한다. 제목·헤더 뒤의 마지막 데이터 행을 가리킨다.
+  const lastDataRow = 1 + dataRowCount
   const titleRange = `A1:${XLSX.utils.encode_col(lastColumn)}1`
   sheet['!merges'] = [XLSX.utils.decode_range(titleRange)]
   sheet['!freeze'] = freeze
-  sheet['!autofilter'] = { ref: `A2:${XLSX.utils.encode_col(lastColumn)}${lastDataRow}` }
+  sheet['!autofilter'] = { ref: `A2:${XLSX.utils.encode_col(lastColumn)}${lastDataRow + 1}` }
   sheet['!cols'] = columnWidths.map((wch) => ({ wch }))
   sheet['!rows'] = [{ hpt: 28 }, { hpt: 36 }]
   sheet.A1.s = {
