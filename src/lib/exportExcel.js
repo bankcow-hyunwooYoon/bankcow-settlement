@@ -20,11 +20,12 @@ function applyStandardSheetStyle(sheet, {
   hasTotalRow = false,
   wrapColumns = [],
 }) {
-  const lastDataRow = 1 + dataRowCount
+  // 제목 1행 + 헤더 1행 뒤에 데이터가 시작하므로, 마지막 데이터 행은 2를 더한다.
+  const lastDataRow = 2 + dataRowCount
   const titleRange = `A1:${XLSX.utils.encode_col(lastColumn)}1`
   sheet['!merges'] = [XLSX.utils.decode_range(titleRange)]
   sheet['!freeze'] = freeze
-  sheet['!autofilter'] = { ref: `A2:${XLSX.utils.encode_col(lastColumn)}${lastDataRow + 1}` }
+  sheet['!autofilter'] = { ref: `A2:${XLSX.utils.encode_col(lastColumn)}${lastDataRow}` }
   sheet['!cols'] = columnWidths.map((wch) => ({ wch }))
   sheet['!rows'] = [{ hpt: 28 }, { hpt: 36 }]
   sheet.A1.s = {
@@ -245,6 +246,26 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
     '사료관리비 합계': Number(record.사료비총액) + Number(record.조사료비총액 ?? 0) + Number(record.관리비총액),
     등록일시: record.등록일시,
   }))
+  const summaryTotal = summaryRows.reduce(
+    (total, row) => ({
+      정산월: '전체 합계',
+      '사료비 총액': total['사료비 총액'] + Number(row['사료비 총액']),
+      '조사료비 총액': total['조사료비 총액'] + Number(row['조사료비 총액']),
+      '사료비 배분 합계(사료비+조사료비)': total['사료비 배분 합계(사료비+조사료비)'] + Number(row['사료비 배분 합계(사료비+조사료비)']),
+      '관리비 총액': total['관리비 총액'] + Number(row['관리비 총액']),
+      '사료관리비 합계': total['사료관리비 합계'] + Number(row['사료관리비 합계']),
+      등록일시: '-',
+    }),
+    {
+      정산월: '전체 합계',
+      '사료비 총액': 0,
+      '조사료비 총액': 0,
+      '사료비 배분 합계(사료비+조사료비)': 0,
+      '관리비 총액': 0,
+      '사료관리비 합계': 0,
+      등록일시: '-',
+    },
+  )
 
   // 확정된 모든 달의 소별 상세를 정산월 → 개체명(번호) 순으로 세로로 이어붙인다.
   // 화면 3은 예외 개체를 위로 고정하지만, 엑셀은 조회·대조가 쉽도록 개체명 순으로 정렬한다.
@@ -373,15 +394,17 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
     ['월별 사료관리비 요약'],
     summaryHeaders,
     ...summaryRows.map((row) => summaryHeaders.map((header) => row[header])),
+    summaryHeaders.map((header) => summaryTotal[header]),
   ])
   applyStandardSheetStyle(summarySheet, {
     title: '월별 사료관리비 요약',
     lastColumn: 6,
-    dataRowCount: summaryRows.length,
+    dataRowCount: summaryRows.length + 1,
     headerFills: ['F2F2F2', 'D9EAF7', 'D9EAF7', 'D9EAF7', 'E2F0D9', 'D9EAD3', 'F2F2F2'],
     numericColumns: [1, 2, 3, 4, 5],
     columnWidths: [14, 15, 15, 28, 15, 17, 18],
     freeze: { xSplit: 1, ySplit: 2, topLeftCell: 'B3', activePane: 'bottomRight', state: 'frozen' },
+    hasTotalRow: true,
   })
   XLSX.utils.book_append_sheet(workbook, summarySheet, '월별 요약')
 
