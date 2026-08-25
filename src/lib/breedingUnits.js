@@ -30,7 +30,7 @@ function monthlyConfirmedRecords(farmName, unitId, placementDate, startYear, sta
 export const BREEDING_UNITS = [
   {
     id: 'unit-chungman-202606',
-    farmName: '충만농장 4호',
+    farmName: '충만농장',
     placementDate: '2026-05-24',
     placementLabel: '2026.05.24 입식',
     headCount: 50,
@@ -38,13 +38,13 @@ export const BREEDING_UNITS = [
     linkedProductIds: ['product-4-1', 'product-4-2', 'product-4-3', 'product-4-4'],
     breedingStatus: '사육중',
     initialRecords: [
-      confirmedRecord('충만농장 4호', 'unit-chungman-202606', '2026-05-24', '2026년 6월', 2700000, 1350000),
-      confirmedRecord('충만농장 4호', 'unit-chungman-202606', '2026-05-24', '2026년 7월', 2750000, 1375000),
+      confirmedRecord('충만농장', 'unit-chungman-202606', '2026-05-24', '2026년 6월', 2700000, 1350000),
+      confirmedRecord('충만농장', 'unit-chungman-202606', '2026-05-24', '2026년 7월', 2750000, 1375000),
     ],
   },
   {
     id: 'unit-cheongjeong-202605',
-    farmName: '청정농장 3호',
+    farmName: '청정농장',
     placementDate: '2026-05-18',
     placementLabel: '2026.05 입식',
     headCount: 50,
@@ -52,14 +52,14 @@ export const BREEDING_UNITS = [
     linkedProductIds: ['product-3-1', 'product-3-2', 'product-3-3'],
     breedingStatus: '사육중',
     initialRecords: [
-      confirmedRecord('청정농장 3호', 'unit-cheongjeong-202605', '2026-05-18', '2026년 5월', 2150000, 1075000),
-      confirmedRecord('청정농장 3호', 'unit-cheongjeong-202605', '2026-05-18', '2026년 6월', 2200000, 1100000),
-      confirmedRecord('청정농장 3호', 'unit-cheongjeong-202605', '2026-05-18', '2026년 7월', 2250000, 1125000),
+      confirmedRecord('청정농장', 'unit-cheongjeong-202605', '2026-05-18', '2026년 5월', 2150000, 1075000),
+      confirmedRecord('청정농장', 'unit-cheongjeong-202605', '2026-05-18', '2026년 6월', 2200000, 1100000),
+      confirmedRecord('청정농장', 'unit-cheongjeong-202605', '2026-05-18', '2026년 7월', 2250000, 1125000),
     ],
   },
   {
     id: 'unit-pureun-202603',
-    farmName: '푸른농장 2호',
+    farmName: '푸른농장',
     placementDate: '2026-03-08',
     placementLabel: '2026.03 입식',
     headCount: 50,
@@ -67,14 +67,14 @@ export const BREEDING_UNITS = [
     linkedProductIds: ['product-2-1', 'product-2-2'],
     breedingStatus: '사육중',
     initialRecords: [
-      confirmedRecord('푸른농장 2호', 'unit-pureun-202603', '2026-03-08', '2026년 3월', 1800000, 900000),
-      confirmedRecord('푸른농장 2호', 'unit-pureun-202603', '2026-03-08', '2026년 4월', 1850000, 925000),
-      confirmedRecord('푸른농장 2호', 'unit-pureun-202603', '2026-03-08', '2026년 5월', 1900000, 950000),
+      confirmedRecord('푸른농장', 'unit-pureun-202603', '2026-03-08', '2026년 3월', 1800000, 900000),
+      confirmedRecord('푸른농장', 'unit-pureun-202603', '2026-03-08', '2026년 4월', 1850000, 925000),
+      confirmedRecord('푸른농장', 'unit-pureun-202603', '2026-03-08', '2026년 5월', 1900000, 950000),
     ],
   },
   {
     id: 'unit-chungman-202509',
-    farmName: '오솔농장 1호',
+    farmName: '오솔농장',
     placementDate: '2024-06-01',
     placementLabel: '2024.06 입식',
     headCount: 50,
@@ -82,6 +82,6 @@ export const BREEDING_UNITS = [
     breedingStatus: '정산완료',
     finalSettlementMonths: 24,
     finalShipmentDate: '2026-05-18',
-    initialRecords: monthlyConfirmedRecords('오솔농장 1호', 'unit-chungman-202509', '2024-06-01', 2024, 6, 24, 2400000, 1200000),
+    initialRecords: monthlyConfirmedRecords('오솔농장', 'unit-chungman-202509', '2024-06-01', 2024, 6, 24, 2400000, 1200000),
   },
 ]
