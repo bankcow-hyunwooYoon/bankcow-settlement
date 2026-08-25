@@ -180,7 +180,7 @@ function applyExitStatusHighlights(sheet, detailDataRows) {
     if (!style) return
 
     const row = index + 2
-    for (let col = 0; col <= 13; col += 1) {
+    for (let col = 0; col <= 12; col += 1) {
       const cell = sheet[XLSX.utils.encode_cell({ r: row, c: col })]
       if (style.row) {
         cell.s = {
@@ -286,8 +286,7 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
           개월령: cattle.개월령 === undefined ? '-' : `${cattle.개월령}개월`,
           // 정산완료 농장은 최종 출하 정산 문서이므로, 사고 이력이 없는 개체를 정상출하로 표시한다.
           상태: unit.breedingStatus === '정산완료' && cattle.상태 === '사육중' ? '정상출하' : cattle.상태,
-          이탈월: exitMonth ?? '-',
-          이탈일: exitDay ? `${exitDay}일` : '-',
+          이탈일자: exitMonth && exitDay ? `${exitMonth} ${exitDay}일` : '-',
           배분상태: isPastExit ? '이전 이탈 · 배분 제외' : '배분 대상',
           // 이탈월 행과 이후 0원 행의 색상을 구분하기 위한 시트 내부 값이다.
           이전이탈여부: Boolean(isPastExit),
@@ -320,8 +319,7 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
       생년월일: '-',
       개월령: '-',
       상태: '-',
-      이탈월: '-',
-      이탈일: '-',
+      이탈일자: '-',
       배분상태: '-',
       '사료비 사육일수': detailTotals.feedDays,
       '사료비 금액': detailTotals.feedAmount,
@@ -408,7 +406,7 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
   })
   XLSX.utils.book_append_sheet(workbook, summarySheet, '월별 요약')
 
-  const detailHeaders = ['정산월', '개체명', '이력번호', '생년월일', '개월령', '상태', '이탈월', '이탈일', '배분상태', '사료비 사육일수', '사료비 금액', '관리비 사육일수', '관리비 금액', '사료관리비 합계']
+  const detailHeaders = ['정산월', '개체명', '이력번호', '생년월일', '개월령', '상태', '이탈일자', '배분상태', '사료비 사육일수', '사료비 금액', '관리비 사육일수', '관리비 금액', '사료관리비 합계']
   const detailSheet = XLSX.utils.aoa_to_sheet([
     ['송아지별 사료관리비 상세'],
     detailHeaders,
@@ -416,11 +414,11 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
   ])
   applyStandardSheetStyle(detailSheet, {
     title: '송아지별 사료관리비 상세',
-    lastColumn: 13,
+    lastColumn: 12,
     dataRowCount: detailRows.length,
-    headerFills: ['F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'D9EAF7', 'D9EAF7', 'E2F0D9', 'E2F0D9', 'D9EAD3'],
-    numericColumns: [4, 9, 10, 11, 12, 13],
-    columnWidths: [14, 16, 16, 13, 10, 10, 14, 10, 22, 16, 16, 16, 16, 18],
+    headerFills: ['F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'D9EAF7', 'D9EAF7', 'E2F0D9', 'E2F0D9', 'D9EAD3'],
+    numericColumns: [4, 8, 9, 10, 11, 12],
+    columnWidths: [14, 16, 16, 13, 10, 10, 18, 22, 16, 16, 16, 16, 18],
     freeze: { xSplit: 4, ySplit: 2, topLeftCell: 'E3', activePane: 'bottomRight', state: 'frozen' },
     hasTotalRow: true,
   })
