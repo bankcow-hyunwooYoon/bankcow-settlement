@@ -119,7 +119,7 @@ function FeedCostTable({ records, onEdit, selectedMonths, onToggleMonth, onToggl
   )
 }
 
-function ExportModal({ open, deathRate, deathCount, headCount, includeGuarantee, onToggleGuarantee, onClose, onExport, isExporting, exportError }) {
+function ExportModal({ open, isCompletedUnit, deathRate, deathCount, headCount, includeGuarantee, onToggleGuarantee, onClose, onExport, isExporting, exportError }) {
   if (!open) return null
   const isBlockedByDeathRate = deathRate >= 0.01
   const rateLabel = `${(deathRate * 100).toFixed(1)}%`
@@ -131,7 +131,7 @@ function ExportModal({ open, deathRate, deathCount, headCount, includeGuarantee,
           <p className="mt-1 text-xs text-gray-500">내보낼 최종 정산 항목을 확인해 주세요.</p>
         </div>
         <div className="space-y-4 px-5 py-4">
-          <div className={`border px-3 py-3 ${isBlockedByDeathRate ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}>
+          {isCompletedUnit ? <div className={`border px-3 py-3 ${isBlockedByDeathRate ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}>
             <p className={`text-xs font-semibold ${isBlockedByDeathRate ? 'text-red-800' : 'text-emerald-800'}`}>
               이 농장의 폐사율은 {rateLabel}입니다 ({deathCount}두 / {headCount}두)
             </p>
@@ -140,8 +140,10 @@ function ExportModal({ open, deathRate, deathCount, headCount, includeGuarantee,
                 ? '폐사율이 1% 이상이므로 농가관리비보증금은 지급하지 않아야 합니다. 필요 시 토글을 직접 변경할 수 있습니다.'
                 : '폐사율이 1% 미만이므로 농가관리비보증금 지급 기준을 충족합니다.'}
             </p>
-          </div>
-          <div className="flex items-center justify-between gap-4 border border-gray-200 px-3 py-3">
+          </div> : <div className="border border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-600">
+            농가관리비보증금은 경매완료 후 최종 정산 엑셀에서만 선택할 수 있습니다.
+          </div>}
+          {isCompletedUnit && <div className="flex items-center justify-between gap-4 border border-gray-200 px-3 py-3">
             <div>
               <p className="text-xs font-medium text-gray-800">농가관리비보증금 지급</p>
               <p className="mt-1 text-[11px] text-gray-500">정상출하 개체에 한해 최종 정산 엑셀에 반영됩니다.</p>
@@ -155,7 +157,7 @@ function ExportModal({ open, deathRate, deathCount, headCount, includeGuarantee,
             >
               <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${includeGuarantee ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
-          </div>
+          </div>}
           <p className="text-[11px] text-gray-400">보증금은 월별 사료비·관리비에는 포함되지 않고, 최종 실제 투입원가에만 별도 반영됩니다.</p>
           {exportError && <p role="alert" className="border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">엑셀 파일을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.</p>}
         </div>
@@ -228,7 +230,7 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
   }
 
   const handleExport = () => {
-    setIncludeFarmManagementGuarantee(guaranteeStatus.isEligibleByDeathRate)
+    setIncludeFarmManagementGuarantee(unit.breedingStatus === '정산완료' && guaranteeStatus.isEligibleByDeathRate)
     setExportError(false)
     setShowExportModal(true)
   }
@@ -352,6 +354,7 @@ export default function FeedCostListScreen({ records, unit, onNavigateToRegister
       />
       <ExportModal
         open={showExportModal}
+        isCompletedUnit={unit.breedingStatus === '정산완료'}
         deathRate={guaranteeStatus.deathRate}
         deathCount={guaranteeStatus.deathCount}
         headCount={unit.headCount}

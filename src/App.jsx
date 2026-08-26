@@ -6,6 +6,16 @@ import { getSelectableMonths, upsertRecord } from './lib/records.js'
 import { BREEDING_UNITS } from './lib/breedingUnits.js'
 import { ACTIVE_INVESTMENT_PRODUCTS, INVESTMENT_PRODUCTS } from './lib/investmentProducts.js'
 
+function buildPlacementBatches(products) {
+  let nextNo = 1
+  return products.map((product) => {
+    const from = nextNo
+    const to = from + product.headCount - 1
+    nextNo = to + 1
+    return { from, to, placementDate: product.placementDate, productId: product.id }
+  })
+}
+
 export default function App() {
   const [screen, setScreen] = useState('units')
   const [units, setUnits] = useState(BREEDING_UNITS)
@@ -96,6 +106,7 @@ export default function App() {
             farmName,
             placementDate,
             headCount: products.reduce((sum, product) => sum + product.headCount, 0),
+            placementBatches: buildPlacementBatches(products),
             linkedProductCount: products.length,
             linkedProductIds: products.map((product) => product.id),
             breedingStatus: '사육중',
@@ -118,6 +129,7 @@ export default function App() {
               farmName,
               placementDate,
               headCount: products.reduce((sum, product) => sum + product.headCount, 0),
+              placementBatches: buildPlacementBatches(products),
               linkedProductCount: products.length,
               linkedProductIds: products.map((product) => product.id),
             }

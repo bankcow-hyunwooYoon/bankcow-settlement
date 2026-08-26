@@ -4,8 +4,8 @@ import { sortRecordsByMonthDesc, STATUS_CONFIRMED } from './records.js'
 import { now } from './prototypeDate.js'
 import { getExpectedProductCost } from './expectedProductCosts.js'
 import { calculateFarmManagementGuarantees } from './farmManagementGuarantee.js'
-
-const FARM_NAME = '충만농장'
+import { getExitHistory } from './livestockHistory.js'
+import { monthIndex } from './settlement.js'
 
 const BORDER = { style: 'thin', color: { rgb: 'D9E1F2' } }
 
@@ -169,13 +169,20 @@ function applyExitStatusHighlights(sheet, detailDataRows) {
     const style = cattle.이전이탈여부
       // 이탈한 달이 지난 행은 0원·배분 제외 상태이므로 회색으로 표시한다.
       ? { row: 'F3F4F6', strong: 'E5E7EB', strongText: '6B7280' }
-      : cattle.상태 === '폐사'
+      : cattle.이탈이전여부
+        // 최종 상태는 표시하되, 실제 이탈월 전에는 상태 색상을 활성화하지 않는다.
+        ? { row: 'FFFFFF', strong: 'F3F4F6', strongText: '6B7280' }
+      : cattle.이탈당월여부 && cattle.상태 === '폐사'
         ? { row: 'FDE9E7', strong: 'C00000' }
-        : cattle.상태 === '조기출하'
+        : cattle.이탈당월여부 && cattle.상태 === '조기출하'
           ? { row: 'FCE4D6', strong: 'C65911' }
-          : cattle.상태 === '정상출하'
-            // 정상출하는 기본 상태이므로 행 전체를 칠하지 않고 상태 셀만 태그처럼 강조한다.
-            ? { row: null, strong: '548235' }
+          : cattle.상태 === '폐사'
+            ? { row: null, strong: 'C00000' }
+            : cattle.상태 === '조기출하'
+              ? { row: null, strong: 'C65911' }
+              : cattle.상태 === '정상출하'
+                // 정상출하는 기본 상태이므로 행 전체를 칠하지 않고 상태 셀만 태그처럼 강조한다.
+                ? { row: 'FFFFFF', strong: '548235' }
             : null
     if (!style) return
 
@@ -199,12 +206,12 @@ function applyExitStatusHighlights(sheet, detailDataRows) {
   })
 }
 
-/** '충만농장_사료관리비_20260813.xlsx' */
-function buildFileName(date = now()) {
+/** '오솔농장_사료관리비_20260813.xlsx' */
+function buildFileName(farmName, date = now()) {
   const yyyy = date.getFullYear()
   const mm = String(date.getMonth() + 1).padStart(2, '0')
   const dd = String(date.getDate()).padStart(2, '0')
-  return `${FARM_NAME}_사료관리비_${yyyy}${mm}${dd}.xlsx`
+  return `${farmName}_사료관리비_${yyyy}${mm}${dd}.xlsx`
 }
 
 async function downloadWorkbook(workbook, fileName) {
@@ -270,25 +277,38 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
   // 확정된 모든 달의 소별 상세를 정산월 → 개체명(번호) 순으로 세로로 이어붙인다.
   // 화면 3은 예외 개체를 위로 고정하지만, 엑셀은 조회·대조가 쉽도록 개체명 순으로 정렬한다.
   const cattleNo = (name) => Number(name.match(/(\d+)호/)[1])
+  const finalExitByNo = new Map(
+    Object.entries(getExitHistory(unit.id)).flatMap(([exitMonth, cattleList]) => (
+      cattleList.map((cattle) => [cattle.no, { ...cattle, exitMonth }])
+    )),
+  )
   const detailDataRows = confirmed.flatMap((record) =>
     [...record.소별상세]
       .sort((a, b) => cattleNo(a.개체명) - cattleNo(b.개체명))
       .map((cattle) => {
         // 이전 저장 데이터의 사고 필드도 이탈 필드로 읽어 호환한다.
-        const exitMonth = cattle.이탈월 ?? cattle.사고월
-        const exitDay = cattle.이탈일 ?? cattle.사고일
-        const isPastExit = cattle.이전이탈여부 ?? cattle.이전사고여부
+        const finalExit = unit.breedingStatus === '정산완료' ? finalExitByNo.get(cattleNo(cattle.개체명)) : null
+        const exitMonth = finalExit?.exitMonth ?? cattle.이탈월 ?? cattle.사고월
+        const exitDay = finalExit?.exitDay ?? cattle.이탈일 ?? cattle.사고일
+        const status = finalExit?.status ?? cattle.상태
+        const isPastExit = exitMonth
+          ? monthIndex(record.정산월) > monthIndex(exitMonth)
+          : Boolean(cattle.이전이탈여부 ?? cattle.이전사고여부)
+        const isExitMonth = Boolean(exitMonth && record.정산월 === exitMonth)
+        const isBeforeExit = Boolean(exitMonth && monthIndex(record.정산월) < monthIndex(exitMonth))
         return {
           정산월: record.정산월,
           개체명: cattle.개체명,
           이력번호: cattle.이력번호 ?? '-',
           생년월일: cattle.생년월일 ?? '-',
           개월령: cattle.개월령 === undefined ? '-' : `${cattle.개월령}개월`,
-          상태: cattle.상태,
+          상태: status,
           이탈일자: exitMonth && exitDay ? `${exitMonth} ${exitDay}일` : '-',
           배분상태: isPastExit ? '이전 이탈 · 배분 제외' : '배분 대상',
           // 이탈월 행과 이후 0원 행의 색상을 구분하기 위한 시트 내부 값이다.
           이전이탈여부: Boolean(isPastExit),
+          이탈당월여부: isExitMonth,
+          이탈이전여부: isBeforeExit,
           '사료비 사육일수': cattle.사료비사육일수,
           '사료비 금액': cattle.사료비금액,
           '관리비 사육일수': cattle.관리비사육일수,
@@ -449,6 +469,6 @@ export async function exportToExcel(records, unit, options) {
   const workbook = buildWorkbook(records, unit, options)
   if (!workbook) return false
 
-  await downloadWorkbook(workbook, buildFileName())
+  await downloadWorkbook(workbook, buildFileName(unit.farmName))
   return true
 }

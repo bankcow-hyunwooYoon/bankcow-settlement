@@ -34,7 +34,7 @@ export function toCattleDetails(rows) {
 }
 
 /** 정산월 + 총액으로 확정 월 데이터 한 건을 만든다. */
-export function buildRecord({ 정산월, 사료비총액, 조사료비총액 = 0, 관리비총액, 상태, 등록일시, farmName = '충만농장', unitId, placementDate }) {
+export function buildRecord({ 정산월, 사료비총액, 조사료비총액 = 0, 관리비총액, 상태, 등록일시, farmName = '충만농장', unitId, placementDate, headCount, placementBatches }) {
   if (상태 !== STATUS_CONFIRMED) {
     // 아직 계산 전이므로 소별 상세는 비워둔다.
     return { 정산월, 사료비총액, 조사료비총액, 관리비총액, 상태, 등록일시, 소별상세: null }
@@ -50,6 +50,8 @@ export function buildRecord({ 정산월, 사료비총액, 조사료비총액 = 0
     farmName,
     unitId,
     placementDate,
+    headCount,
+    placementBatches,
   })
 
   return {

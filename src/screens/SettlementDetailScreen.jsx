@@ -212,8 +212,8 @@ export default function SettlementDetailScreen({
   const shippedCount = exceptionCattle.filter((cattle) => cattle.status === '정상출하').length
 
   const { totalFeedDays, totalMgmtDays } = useMemo(
-    () => calculateTotalDays(daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate),
-    [daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate],
+    () => calculateTotalDays(daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate, unit.headCount, unit.placementBatches),
+    [daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate, unit.headCount, unit.placementBatches],
   )
 
   // 조사료비는 사료비와 합산한 금액을 사료비 사육일수 기준으로 배분한다.
@@ -221,6 +221,7 @@ export default function SettlementDetailScreen({
   const totalFeedCost = Number(feedCost) + Number(roughageCost)
   const hasValidCosts = debouncedTotalFeedCost > 0 && Number(debouncedMgmtCost) > 0
   const hasEnteredValidCosts = totalFeedCost > 0 && Number(mgmtCost) > 0
+  const canSave = hasEnteredValidCosts && totalFeedDays > 0 && totalMgmtDays > 0
 
   const result = useMemo(() => {
     if (!hasValidCosts) return null
@@ -232,8 +233,10 @@ export default function SettlementDetailScreen({
       farmName,
       unitId: unit.id,
       placementDate: unit.placementDate,
+      headCount: unit.headCount,
+      placementBatches: unit.placementBatches,
     })
-  }, [hasValidCosts, debouncedTotalFeedCost, debouncedMgmtCost, daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate])
+  }, [hasValidCosts, debouncedTotalFeedCost, debouncedMgmtCost, daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate, unit.headCount, unit.placementBatches])
 
   const buildConfirmedRecord = () => {
     // 저장은 디바운스 대기 중인 값까지 반영한다.
@@ -245,6 +248,8 @@ export default function SettlementDetailScreen({
       farmName,
       unitId: unit.id,
       placementDate: unit.placementDate,
+      headCount: unit.headCount,
+      placementBatches: unit.placementBatches,
     })
     return {
       정산월: settlementMonth,
@@ -444,9 +449,9 @@ export default function SettlementDetailScreen({
             <button
               type="button"
               onClick={() => setConfirmAction('edit')}
-              disabled={!hasEnteredValidCosts}
+              disabled={!canSave}
               className={`px-4 py-2 text-xs font-medium ${
-                hasEnteredValidCosts
+                canSave
                   ? 'bg-gray-900 text-white hover:bg-gray-700'
                   : 'cursor-not-allowed bg-gray-200 text-gray-400'
               }`}
@@ -457,9 +462,9 @@ export default function SettlementDetailScreen({
             <button
               type="button"
               onClick={() => setConfirmAction('confirm')}
-              disabled={!hasEnteredValidCosts}
+              disabled={!canSave}
               className={`px-4 py-2 text-xs font-medium ${
-                hasEnteredValidCosts
+                canSave
                   ? 'bg-gray-900 text-white hover:bg-gray-700'
                   : 'cursor-not-allowed bg-gray-200 text-gray-400'
               }`}

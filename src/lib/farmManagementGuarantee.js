@@ -53,7 +53,7 @@ export function calculateFarmManagementGuarantees(unit, shouldPay) {
   for (let no = 1; no <= unit.headCount; no += 1) {
     const exit = exitByNo.get(no)
     if (exit && exit.status !== '정상출하') continue
-    const placementDate = getCattlePlacementDate(unit.id, no, unit.placementDate)
+    const placementDate = getCattlePlacementDate(unit.id, no, unit.placementDate, unit.placementBatches)
     const startDate = new Date(`${placementDate}T00:00:00`)
     const shipmentDate = exit ? getExitDate(exit.exitMonth, exit.exitDay) : fallbackShipmentDate
     if (!shipmentDate) continue

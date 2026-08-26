@@ -71,7 +71,8 @@ export function getExitHistory(unitId) {
 }
 
 /** 해당 송아지의 실제 입식일. 개별 데이터가 없으면 사육 단위의 최초 입식일을 사용한다. */
-export function getCattlePlacementDate(unitId, cattleNo, fallbackPlacementDate) {
-  const batch = (PLACEMENT_BATCHES_BY_UNIT[unitId] ?? []).find(({ from, to }) => cattleNo >= from && cattleNo <= to)
+export function getCattlePlacementDate(unitId, cattleNo, fallbackPlacementDate, placementBatches) {
+  const batch = (placementBatches ?? PLACEMENT_BATCHES_BY_UNIT[unitId] ?? [])
+    .find(({ from, to }) => cattleNo >= from && cattleNo <= to)
   return batch?.placementDate ?? fallbackPlacementDate
 }

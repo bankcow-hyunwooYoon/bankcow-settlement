@@ -53,9 +53,9 @@ export function getExceptionCattle(settlementMonth, farmName = '충만농장', u
   })
 }
 
-export function getCattleForMonth(settlementMonth, farmName = '충만농장', unitId, fallbackPlacementDate) {
+export function getCattleForMonth(settlementMonth, farmName = '충만농장', unitId, fallbackPlacementDate, headCount = TOTAL_CATTLE_COUNT, placementBatches) {
   const exceptionByNo = new Map(getExceptionCattle(settlementMonth, farmName, unitId).map((cattle) => [cattle.no, cattle]))
-  return Array.from({ length: TOTAL_CATTLE_COUNT }, (_, index) => index + 1).map(
+  return Array.from({ length: headCount }, (_, index) => index + 1).map(
     (no) => {
       const exception = exceptionByNo.get(no)
       const birthMonth = ((no * 7) % 12) + 1
@@ -75,7 +75,7 @@ export function getCattleForMonth(settlementMonth, farmName = '충만농장', un
         exitDay: exception?.exitDay ?? null,
         exitMonth: exception?.exitMonth ?? null,
         isPastExit: exception?.isPastExit ?? false,
-        placementDate: getCattlePlacementDate(unitId, no, fallbackPlacementDate),
+        placementDate: getCattlePlacementDate(unitId, no, fallbackPlacementDate, placementBatches),
       }
     },
   )
@@ -154,8 +154,8 @@ function allocateWholeWon(rows, rawAmountKey, totalAmount) {
 }
 
 /** 정산월의 사료비/관리비 사육일수 합계. */
-export function calculateTotalDays(daysInMonth, settlementMonth, farmName, unitId, placementDate) {
-  const allCattle = getCattleForMonth(settlementMonth, farmName, unitId, placementDate)
+export function calculateTotalDays(daysInMonth, settlementMonth, farmName, unitId, placementDate, headCount = TOTAL_CATTLE_COUNT, placementBatches) {
+  const allCattle = getCattleForMonth(settlementMonth, farmName, unitId, placementDate, headCount, placementBatches)
   return {
     totalFeedDays: allCattle.reduce((sum, c) => sum + feedDaysOf(c, daysInMonth, settlementMonth, placementDate), 0),
     totalMgmtDays: allCattle.reduce((sum, c) => sum + mgmtDaysOf(c, daysInMonth, settlementMonth, placementDate), 0),
@@ -166,12 +166,12 @@ export function calculateTotalDays(daysInMonth, settlementMonth, farmName, unitI
  * 개체별 배분 결과를 계산한다.
  * 금액은 반올림하지 않은 정확한 값으로 들고 있고, 반올림은 표시 시점에만 한다.
  */
-export function calculateAllocation({ feedCostTotal, mgmtCostTotal, daysInMonth, settlementMonth, farmName, unitId, placementDate }) {
-  const allCattle = getCattleForMonth(settlementMonth, farmName, unitId, placementDate)
-  const { totalFeedDays, totalMgmtDays } = calculateTotalDays(daysInMonth, settlementMonth, farmName, unitId, placementDate)
+export function calculateAllocation({ feedCostTotal, mgmtCostTotal, daysInMonth, settlementMonth, farmName, unitId, placementDate, headCount = TOTAL_CATTLE_COUNT, placementBatches }) {
+  const allCattle = getCattleForMonth(settlementMonth, farmName, unitId, placementDate, headCount, placementBatches)
+  const { totalFeedDays, totalMgmtDays } = calculateTotalDays(daysInMonth, settlementMonth, farmName, unitId, placementDate, headCount, placementBatches)
 
-  const feedUnitPrice = feedCostTotal / totalFeedDays
-  const mgmtUnitPrice = mgmtCostTotal / totalMgmtDays
+  const feedUnitPrice = totalFeedDays > 0 ? feedCostTotal / totalFeedDays : 0
+  const mgmtUnitPrice = totalMgmtDays > 0 ? mgmtCostTotal / totalMgmtDays : 0
 
   const rawRows = allCattle.map((cattle) => {
     const feedDays = feedDaysOf(cattle, daysInMonth, settlementMonth, placementDate)
@@ -192,8 +192,10 @@ export function calculateAllocation({ feedCostTotal, mgmtCostTotal, daysInMonth,
   const exactFeedSum = rawRows.reduce((sum, r) => sum + r.feedAmount, 0)
   const exactMgmtSum = rawRows.reduce((sum, r) => sum + r.mgmtAmount, 0)
 
-  const allocatedFeedById = allocateWholeWon(rawRows, 'feedAmount', feedCostTotal)
-  const allocatedMgmtById = allocateWholeWon(rawRows, 'mgmtAmount', mgmtCostTotal)
+  // 배분 대상 일수가 없다면 0원으로 남겨 검증 실패를 노출한다. 존재하지 않는
+  // 사육일수에 총액을 억지로 나누거나 잔액을 임의 개체에 몰아주지 않는다.
+  const allocatedFeedById = allocateWholeWon(rawRows, 'feedAmount', totalFeedDays > 0 ? feedCostTotal : 0)
+  const allocatedMgmtById = allocateWholeWon(rawRows, 'mgmtAmount', totalMgmtDays > 0 ? mgmtCostTotal : 0)
   const rows = rawRows.map((row) => {
     const feedAmount = allocatedFeedById.get(row.id)
     const mgmtAmount = allocatedMgmtById.get(row.id)
