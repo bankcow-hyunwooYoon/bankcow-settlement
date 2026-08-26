@@ -296,7 +296,7 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
           : Boolean(cattle.이전이탈여부 ?? cattle.이전사고여부)
         const isExitMonth = Boolean(exitMonth && record.정산월 === exitMonth)
         const isBeforeExit = Boolean(exitMonth && monthIndex(record.정산월) < monthIndex(exitMonth))
-        // 송아지별 상세는 최종 상태 목록이 아니라 월별 히스토리다.
+        // 송아지별 월별 히스토리는 최종 상태 목록이 아니라 각 정산월 당시의 기록이다.
         // 미래에 이탈할 개체도 이탈월 전까지는 사육중이며, 이탈 정보도 미리 노출하지 않는다.
         const historicalStatus = isBeforeExit ? '사육중' : finalStatus
         return {
@@ -430,12 +430,12 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
 
   const detailHeaders = ['정산월', '개체명', '이력번호', '생년월일', '개월령', '상태', '이탈일자', '배분상태', '사료비 사육일수', '사료비 금액', '관리비 사육일수', '관리비 금액', '사료관리비 합계']
   const detailSheet = XLSX.utils.aoa_to_sheet([
-    ['송아지별 사료관리비 상세'],
+    ['송아지별 월별 히스토리'],
     detailHeaders,
     ...detailRows.map((row) => detailHeaders.map((header) => row[header])),
   ])
   applyStandardSheetStyle(detailSheet, {
-    title: '송아지별 사료관리비 상세',
+    title: '송아지별 월별 히스토리',
     lastColumn: 12,
     dataRowCount: detailRows.length,
     headerFills: ['F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'F2F2F2', 'D9EAF7', 'D9EAF7', 'E2F0D9', 'E2F0D9', 'D9EAD3'],
@@ -445,7 +445,7 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
     hasTotalRow: true,
   })
   applyExitStatusHighlights(detailSheet, detailDataRows)
-  XLSX.utils.book_append_sheet(workbook, detailSheet, '송아지별 상세')
+  XLSX.utils.book_append_sheet(workbook, detailSheet, '송아지별 월별 히스토리')
 
   const comparisonHeaders = [
     '증권', '개체명', '입식일', '이력번호',
