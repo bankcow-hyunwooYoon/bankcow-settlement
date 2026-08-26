@@ -170,8 +170,8 @@ function applyExitStatusHighlights(sheet, detailDataRows) {
       // 이탈한 달이 지난 행은 0원·배분 제외 상태이므로 회색으로 표시한다.
       ? { row: 'F3F4F6', strong: 'E5E7EB', strongText: '6B7280' }
       : cattle.이탈이전여부
-        // 최종 상태는 표시하되, 실제 이탈월 전에는 상태 색상을 활성화하지 않는다.
-        ? { row: 'FFFFFF', strong: 'F3F4F6', strongText: '6B7280' }
+        // 월별 히스토리 기준으로 아직 이탈 전인 개체는 활성 사육중 상태다.
+        ? { row: 'FFFFFF', strong: 'D9EAF7', strongText: '4472C4' }
       : cattle.이탈당월여부 && cattle.상태 === '폐사'
         ? { row: 'FDE9E7', strong: 'C00000' }
         : cattle.이탈당월여부 && cattle.상태 === '조기출하'
@@ -290,20 +290,23 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
         const finalExit = unit.breedingStatus === '정산완료' ? finalExitByNo.get(cattleNo(cattle.개체명)) : null
         const exitMonth = finalExit?.exitMonth ?? cattle.이탈월 ?? cattle.사고월
         const exitDay = finalExit?.exitDay ?? cattle.이탈일 ?? cattle.사고일
-        const status = finalExit?.status ?? cattle.상태
+        const finalStatus = finalExit?.status ?? cattle.상태
         const isPastExit = exitMonth
           ? monthIndex(record.정산월) > monthIndex(exitMonth)
           : Boolean(cattle.이전이탈여부 ?? cattle.이전사고여부)
         const isExitMonth = Boolean(exitMonth && record.정산월 === exitMonth)
         const isBeforeExit = Boolean(exitMonth && monthIndex(record.정산월) < monthIndex(exitMonth))
+        // 송아지별 상세는 최종 상태 목록이 아니라 월별 히스토리다.
+        // 미래에 이탈할 개체도 이탈월 전까지는 사육중이며, 이탈 정보도 미리 노출하지 않는다.
+        const historicalStatus = isBeforeExit ? '사육중' : finalStatus
         return {
           정산월: record.정산월,
           개체명: cattle.개체명,
           이력번호: cattle.이력번호 ?? '-',
           생년월일: cattle.생년월일 ?? '-',
           개월령: cattle.개월령 === undefined ? '-' : `${cattle.개월령}개월`,
-          상태: status,
-          이탈일자: exitMonth && exitDay ? `${exitMonth} ${exitDay}일` : '-',
+          상태: historicalStatus,
+          이탈일자: !isBeforeExit && exitMonth && exitDay ? `${exitMonth} ${exitDay}일` : '-',
           배분상태: isPastExit ? '이전 이탈 · 배분 제외' : '배분 대상',
           // 이탈월 행과 이후 0원 행의 색상을 구분하기 위한 시트 내부 값이다.
           이전이탈여부: Boolean(isPastExit),
