@@ -7,9 +7,10 @@ const STATUS_META = [
 
 export default function CattleStatusSummary({ normal, dead, early, shipped = 0, normalLabel = '사육중' }) {
   const counts = { normal, dead, early, shipped }
+  const visibleStatuses = STATUS_META.filter((item) => !(item.key === 'normal' && normalLabel === '정상출하'))
   return (
     <div className="flex items-center gap-1.5">
-      {STATUS_META.map((item) => (
+      {visibleStatuses.map((item) => (
         <span
           key={item.key}
           className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${item.badge}`}

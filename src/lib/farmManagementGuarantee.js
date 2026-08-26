@@ -1,10 +1,25 @@
-import { getExitHistory } from './livestockHistory.js'
+import { getCattlePlacementDate, getExitHistory } from './livestockHistory.js'
 
 const MONTHLY_GUARANTEE = 2000
 const DEATH_RATE_LIMIT = 0.01
 
 function getMonthDistance(startDate, endDate) {
   return (endDate.getFullYear() - startDate.getFullYear()) * 12 + endDate.getMonth() - startDate.getMonth()
+}
+
+function getExitDate(exitMonth, exitDay) {
+  const match = exitMonth.match(/(\d+)년\s*(\d+)월/)
+  if (!match) return null
+  return new Date(Number(match[1]), Number(match[2]) - 1, exitDay)
+}
+
+function calculateGuaranteeAmount(startDate, shipmentDate) {
+  const monthsBetween = getMonthDistance(startDate, shipmentDate)
+  const daysInFinalMonth = new Date(shipmentDate.getFullYear(), shipmentDate.getMonth() + 1, 0).getDate()
+  const eligibleMonths = monthsBetween === 0
+    ? 1
+    : 1 + Math.max(0, monthsBetween - 1) + shipmentDate.getDate() / daysInFinalMonth
+  return Math.round(eligibleMonths * MONTHLY_GUARANTEE)
 }
 
 /** 사육 단위 전체의 폐사율과 보증금 기본 지급 가능 여부를 반환한다. */
@@ -28,18 +43,21 @@ export function calculateFarmManagementGuarantees(unit, shouldPay) {
   const allocations = new Map()
   if (!shouldPay || unit.breedingStatus !== '정산완료' || !unit.finalShipmentDate) return allocations
 
-  const startDate = new Date(`${unit.placementDate}T00:00:00`)
-  const finalDate = new Date(`${unit.finalShipmentDate}T00:00:00`)
-  const exceptionNos = new Set(Object.values(getExitHistory(unit.id)).flat().map((cattle) => cattle.no))
-  const monthsBetween = getMonthDistance(startDate, finalDate)
-  const daysInFinalMonth = new Date(finalDate.getFullYear(), finalDate.getMonth() + 1, 0).getDate()
-  const eligibleMonths = monthsBetween === 0
-    ? 1
-    : 1 + Math.max(0, monthsBetween - 1) + finalDate.getDate() / daysInFinalMonth
-  const amount = Math.round(eligibleMonths * MONTHLY_GUARANTEE)
+  const fallbackShipmentDate = new Date(`${unit.finalShipmentDate}T00:00:00`)
+  const exitByNo = new Map(
+    Object.entries(getExitHistory(unit.id)).flatMap(([exitMonth, cattleList]) => (
+      cattleList.map((cattle) => [cattle.no, { ...cattle, exitMonth }])
+    )),
+  )
 
   for (let no = 1; no <= unit.headCount; no += 1) {
-    if (!exceptionNos.has(no)) allocations.set(`${unit.farmName} ${no}호`, amount)
+    const exit = exitByNo.get(no)
+    if (exit && exit.status !== '정상출하') continue
+    const placementDate = getCattlePlacementDate(unit.id, no, unit.placementDate)
+    const startDate = new Date(`${placementDate}T00:00:00`)
+    const shipmentDate = exit ? getExitDate(exit.exitMonth, exit.exitDay) : fallbackShipmentDate
+    if (!shipmentDate) continue
+    allocations.set(`${unit.farmName} ${no}호`, calculateGuaranteeAmount(startDate, shipmentDate))
   }
   return allocations
 }

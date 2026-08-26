@@ -284,8 +284,7 @@ export function buildWorkbook(records, unit, { includeFarmManagementGuarantee = 
           이력번호: cattle.이력번호 ?? '-',
           생년월일: cattle.생년월일 ?? '-',
           개월령: cattle.개월령 === undefined ? '-' : `${cattle.개월령}개월`,
-          // 정산완료 농장은 최종 출하 정산 문서이므로, 사고 이력이 없는 개체를 정상출하로 표시한다.
-          상태: unit.breedingStatus === '정산완료' && cattle.상태 === '사육중' ? '정상출하' : cattle.상태,
+          상태: cattle.상태,
           이탈일자: exitMonth && exitDay ? `${exitMonth} ${exitDay}일` : '-',
           배분상태: isPastExit ? '이전 이탈 · 배분 제외' : '배분 대상',
           // 이탈월 행과 이후 0원 행의 색상을 구분하기 위한 시트 내부 값이다.
