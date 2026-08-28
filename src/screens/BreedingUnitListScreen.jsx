@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import PrototypeDateBadge from '../components/PrototypeDateBadge.jsx'
-import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import { now } from '../lib/prototypeDate.js'
 
 const FILTERS = [
@@ -107,32 +106,28 @@ function FarmRegistrationModal({ products, unit, onClose, onSubmit }) {
   )
 }
 
-export default function BreedingUnitListScreen({ units, availableProducts, productCatalog, onSelectUnit, onCreateUnit, onUpdateUnit }) {
+export default function BreedingUnitListScreen({ units, availableProducts, onSelectUnit, onCreateUnit, onUpdateUnit }) {
   const [filter, setFilter] = useState('사육중')
   const [isRegistrationOpen, setIsRegistrationOpen] = useState(false)
-  const [editingUnit, setEditingUnit] = useState(null)
-  const [pendingUpdate, setPendingUpdate] = useState(null)
+  const [editingUnitId, setEditingUnitId] = useState(null)
+  const [editingFarmName, setEditingFarmName] = useState('')
   const visibleUnits = useMemo(
     () => units
       .filter((unit) => filter === '전체' || unit.breedingStatus === filter)
       .sort((a, b) => b.placementDate.localeCompare(a.placementDate)),
     [filter, units],
   )
-  const editableProducts = editingUnit
-    ? productCatalog.filter((product) => !units.some((unit) => unit.id !== editingUnit.id && unit.linkedProductIds?.includes(product.id)))
-    : availableProducts
+  const beginFarmNameEdit = (unit) => {
+    setEditingUnitId(unit.id)
+    setEditingFarmName(unit.farmName)
+  }
 
-  const handleEditSubmit = (payload) => {
-    const previousIds = [...(editingUnit.linkedProductIds ?? [])].sort().join(',')
-    const nextIds = payload.products.map((product) => product.id).sort().join(',')
-    const productsChanged = previousIds !== nextIds
-    if (productsChanged && editingUnit.records.length > 0) {
-      setPendingUpdate({ unit: editingUnit, payload })
-      setEditingUnit(null)
-      return
-    }
-    onUpdateUnit(editingUnit, payload, { deleteRecords: false })
-    setEditingUnit(null)
+  const saveFarmName = (unit) => {
+    const farmName = editingFarmName.trim()
+    if (!farmName) return
+    onUpdateUnit(unit, { farmName })
+    setEditingUnitId(null)
+    setEditingFarmName('')
   }
 
   return (
@@ -185,7 +180,20 @@ export default function BreedingUnitListScreen({ units, availableProducts, produ
                   className="cursor-pointer transition-colors hover:bg-gray-100"
                 >
                   <td className="border-b border-gray-200 px-4 py-3">
-                    <p className="font-medium text-gray-900">{unit.farmName}</p>
+                    {editingUnitId === unit.id ? (
+                      <input
+                        autoFocus
+                        value={editingFarmName}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => setEditingFarmName(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') saveFarmName(unit)
+                          if (event.key === 'Escape') setEditingUnitId(null)
+                        }}
+                        className="w-full min-w-0 border border-gray-300 px-2 py-1 text-[13px] font-medium text-gray-900 outline-none focus:border-gray-500"
+                        aria-label={`${unit.farmName} 농장명 수정`}
+                      />
+                    ) : <p className="font-medium text-gray-900">{unit.farmName}</p>}
                   </td>
                   <td className="border-b border-gray-200 px-4 py-3 text-gray-700">{unit.placementDate.replaceAll('-', '.')}</td>
                   <td className="border-b border-gray-200 px-4 py-3 text-right text-gray-700">{unit.headCount.toLocaleString('ko-KR')}두</td>
@@ -193,7 +201,12 @@ export default function BreedingUnitListScreen({ units, availableProducts, produ
                   <td className="border-b border-gray-200 px-4 py-3"><BreedingStatusBadge status={unit.breedingStatus} /></td>
                   <td className="border-b border-gray-200 px-4 py-3"><InputProgress unit={unit} /></td>
                   <td className="border-b border-gray-200 px-4 py-3 text-center" onClick={(event) => event.stopPropagation()}>
-                    <button type="button" onClick={() => setEditingUnit(unit)} className="border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50">수정</button>
+                    {editingUnitId === unit.id ? (
+                      <div className="flex justify-center gap-1">
+                        <button type="button" disabled={!editingFarmName.trim()} onClick={() => saveFarmName(unit)} className="border border-gray-900 bg-gray-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-300">저장</button>
+                        <button type="button" onClick={() => setEditingUnitId(null)} className="border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50">취소</button>
+                      </div>
+                    ) : <button type="button" onClick={() => beginFarmNameEdit(unit)} className="border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50">수정</button>}
                   </td>
                 </tr>
               ))}
@@ -211,26 +224,7 @@ export default function BreedingUnitListScreen({ units, availableProducts, produ
             }}
           />
         )}
-        {editingUnit && (
-          <FarmRegistrationModal
-            key={editingUnit.id}
-            unit={editingUnit}
-            products={editableProducts}
-            onClose={() => setEditingUnit(null)}
-            onSubmit={handleEditSubmit}
-          />
-        )}
       </div>
-      <ConfirmDialog
-        open={Boolean(pendingUpdate)}
-        message={`연결 상품을 변경하면 기존에 확정한 사료관리비 ${pendingUpdate?.unit.records.length ?? 0}건과 첨부파일이 모두 삭제됩니다. 변경 후 새 기준으로 다시 입력해야 합니다.`}
-        onCancel={() => setPendingUpdate(null)}
-        onConfirm={() => {
-          onUpdateUnit(pendingUpdate.unit, pendingUpdate.payload, { deleteRecords: true })
-          setPendingUpdate(null)
-        }}
-        confirmLabel="변경 및 정산 삭제"
-      />
     </div>
   )
 }
