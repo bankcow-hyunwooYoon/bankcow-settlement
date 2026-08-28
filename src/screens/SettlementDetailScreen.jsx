@@ -5,7 +5,6 @@ import PrototypeDateBadge from '../components/PrototypeDateBadge.jsx'
 import ConfirmDialog from '../components/ConfirmDialog.jsx'
 import AllocationResult, { CostSummaryCard } from '../components/AllocationResult.jsx'
 import { formatDateTime, formatNumber, formatWon, parseDigits } from '../lib/format.js'
-import { useDebouncedValue } from '../lib/hooks.js'
 import { createAttachment, downloadAttachment, downloadAttachmentsZip, formatFileSize } from '../lib/attachments.js'
 import { now } from '../lib/prototypeDate.js'
 import {
@@ -25,27 +24,59 @@ const NORMAL_COUNT = 50
 function ExceptionCattlePanel({ settlementMonth, cattleList }) {
   const monthLabel = settlementMonth?.match(/(\d+)월/)?.[1]
   const [isOpen, setIsOpen] = useState(false)
+  const [showAllExited, setShowAllExited] = useState(false)
+  const currentMonthCattle = cattleList.filter((cattle) => !cattle.isPastExit)
+  const displayedCattle = showAllExited ? cattleList : currentMonthCattle
+
   return (
-    <div className="mb-5 border border-gray-200 bg-white">
-      <button
-        type="button"
-        onClick={() => setIsOpen((open) => !open)}
-        aria-expanded={isOpen}
-        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
-      >
-        <span className="text-xs font-medium text-gray-700">
-          {monthLabel ? `${monthLabel}월 기준 이탈 개체` : '이번 달 이탈 개체'}
-          <span className="ml-1.5 text-gray-400">{cattleList.length}두</span>
-        </span>
-        <span className="text-xs text-gray-400">{isOpen ? '⌃ 접기' : '⌄ 펼치기'}</span>
-      </button>
-      {isOpen && (
-        <div className="border-t border-gray-200">
-          {cattleList.length === 0 ? (
+    <section className="mb-5">
+      <div className="mb-3">
+        <h2 className="text-sm font-semibold text-gray-900">이탈 개체</h2>
+        <p className="mt-1 text-xs text-gray-400">
+          선택한 정산월에 이탈했거나 이전에 이탈한 개체만 표시됩니다. 이후 월 이탈 개체는 해당 정산월의 배분 대상이 아니므로 표시되지 않습니다.
+        </p>
+      </div>
+      <div className="border border-gray-200 bg-white">
+        <div className="flex items-center px-4 py-3">
+          <button
+            type="button"
+            onClick={() => setIsOpen((open) => !open)}
+            aria-expanded={isOpen}
+            className="min-w-0 flex-1 text-left"
+          >
+            <span className="text-xs font-medium text-gray-700">
+              {monthLabel ? `${monthLabel}월 기준 이탈 개체` : '이번 달 이탈 개체'}
+              <span className="ml-1.5 text-gray-400">{displayedCattle.length}두</span>
+            </span>
+          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-400">
+              모든 이탈 개체 보기
+              <input
+                type="checkbox"
+                checked={showAllExited}
+                onChange={(event) => setShowAllExited(event.target.checked)}
+                className="peer sr-only"
+              />
+              <span className="relative h-5 w-9 rounded-full bg-gray-200 transition-colors peer-checked:bg-gray-900 after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-4" />
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsOpen((open) => !open)}
+              aria-label={isOpen ? '이탈 개체 접기' : '이탈 개체 펼치기'}
+              className="text-xs text-gray-400 hover:text-gray-700"
+            >
+              {isOpen ? '⌃' : '⌄'}
+            </button>
+          </div>
+        </div>
+        {isOpen && (
+          <div className="border-t border-gray-200">
+          {displayedCattle.length === 0 ? (
             <p className="px-4 py-3 text-sm text-gray-500">이탈 개체가 없습니다</p>
           ) : (
             <div className="divide-y divide-gray-100">
-          {cattleList.map((cattle) => (
+          {displayedCattle.map((cattle) => (
             <div
               key={cattle.id}
               className={`flex items-center justify-between px-4 py-2.5 text-[13px] ${
@@ -73,8 +104,9 @@ function ExceptionCattlePanel({ settlementMonth, cattleList }) {
         </div>
           )}
         </div>
-      )}
-    </div>
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -105,7 +137,7 @@ function MoneyInput({ id, label, value, onChange, disabled }) {
   )
 }
 
-function AttachmentsPanel({ attachments, onAdd, onRemove, disabled, settlementMonth }) {
+function AttachmentsPanel({ attachments, onAdd, onRemove, disabled, settlementMonth, allowDownloads }) {
   const [isDownloading, setIsDownloading] = useState(false)
   const handleDownloadAll = async () => {
     setIsDownloading(true)
@@ -121,7 +153,7 @@ function AttachmentsPanel({ attachments, onAdd, onRemove, disabled, settlementMo
           <p className="mt-1 text-xs text-gray-400">세금계산서, 거래명세서, 영수증 등 증빙 파일을 첨부할 수 있습니다.</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {attachments.length > 0 && (
+          {allowDownloads && attachments.length > 0 && (
             <button type="button" onClick={handleDownloadAll} disabled={isDownloading} className="border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:text-gray-400">
               {isDownloading ? 'ZIP 생성 중...' : '첨부파일 전체 다운로드'}
             </button>
@@ -157,7 +189,9 @@ function AttachmentsPanel({ attachments, onAdd, onRemove, disabled, settlementMo
                 <p className="mt-0.5 text-[11px] text-gray-400">{formatFileSize(attachment.size)}</p>
               </div>
               <div className="flex shrink-0 items-center gap-3 text-xs">
-                <button type="button" onClick={() => downloadAttachment(attachment)} className="font-medium text-gray-700 hover:underline">다운로드</button>
+                {allowDownloads && (
+                  <button type="button" onClick={() => downloadAttachment(attachment)} className="font-medium text-gray-700 hover:underline">다운로드</button>
+                )}
                 {!disabled && <button type="button" onClick={() => onRemove(attachment.id)} className="text-red-600 hover:underline">삭제</button>}
               </div>
             </li>
@@ -191,16 +225,22 @@ export default function SettlementDetailScreen({
   const [roughageCost, setRoughageCost] = useState(record?.조사료비총액 ?? '')
   const [mgmtCost, setMgmtCost] = useState(record?.관리비총액 ?? '')
   const [attachments, setAttachments] = useState(record?.첨부파일 ?? [])
+  // 신규·수정은 계산하기를 누른 시점의 값을 고정해 결과를 보여 준다.
+  const [calculationSnapshot, setCalculationSnapshot] = useState(() => (
+    record
+      ? {
+          settlementMonth: record.정산월,
+          feedCost: Number(record.사료비총액 ?? 0),
+          roughageCost: Number(record.조사료비총액 ?? 0),
+          mgmtCost: Number(record.관리비총액 ?? 0),
+        }
+      : null
+  ))
 
   const isReadOnly = mode === 'view'
   const isEditing = mode === 'edit'
   // 기존 행은 정산월을 바꿀 수 없다. 다른 달은 신규 등록으로 처리한다.
   const isMonthLocked = !isNew
-
-  // 입력이 멈췄을 때만 소별 배분을 다시 계산한다.
-  const debouncedFeedCost = useDebouncedValue(feedCost, 300)
-  const debouncedRoughageCost = useDebouncedValue(roughageCost, 300)
-  const debouncedMgmtCost = useDebouncedValue(mgmtCost, 300)
 
   const daysInMonth = settlementMonth ? getDaysInSettlementMonth(settlementMonth) : 0
   const exceptionCattle = useMemo(
@@ -217,26 +257,55 @@ export default function SettlementDetailScreen({
   )
 
   // 조사료비는 사료비와 합산한 금액을 사료비 사육일수 기준으로 배분한다.
-  const debouncedTotalFeedCost = Number(debouncedFeedCost) + Number(debouncedRoughageCost)
   const totalFeedCost = Number(feedCost) + Number(roughageCost)
-  const hasValidCosts = debouncedTotalFeedCost > 0 && Number(debouncedMgmtCost) > 0
   const hasEnteredValidCosts = totalFeedCost > 0 && Number(mgmtCost) > 0
-  const canSave = hasEnteredValidCosts && totalFeedDays > 0 && totalMgmtDays > 0
+  const canCalculate = hasEnteredValidCosts && totalFeedDays > 0 && totalMgmtDays > 0
+  const isCurrentCalculation = Boolean(
+    calculationSnapshot
+      && calculationSnapshot.settlementMonth === settlementMonth
+      && calculationSnapshot.feedCost === Number(feedCost)
+      && calculationSnapshot.roughageCost === Number(roughageCost)
+      && calculationSnapshot.mgmtCost === Number(mgmtCost),
+  )
+  const canSave = canCalculate && isCurrentCalculation
 
   const result = useMemo(() => {
-    if (!hasValidCosts) return null
+    if (!calculationSnapshot) return null
     return calculateAllocation({
-      feedCostTotal: debouncedTotalFeedCost,
-      mgmtCostTotal: Number(debouncedMgmtCost),
-      daysInMonth,
-      settlementMonth,
+      feedCostTotal: calculationSnapshot.feedCost + calculationSnapshot.roughageCost,
+      mgmtCostTotal: calculationSnapshot.mgmtCost,
+      daysInMonth: getDaysInSettlementMonth(calculationSnapshot.settlementMonth),
+      settlementMonth: calculationSnapshot.settlementMonth,
       farmName,
       unitId: unit.id,
       placementDate: unit.placementDate,
       headCount: unit.headCount,
       placementBatches: unit.placementBatches,
     })
-  }, [hasValidCosts, debouncedTotalFeedCost, debouncedMgmtCost, daysInMonth, settlementMonth, farmName, unit.id, unit.placementDate, unit.headCount, unit.placementBatches])
+  }, [calculationSnapshot, farmName, unit.id, unit.placementDate, unit.headCount, unit.placementBatches])
+
+  const calculatedDays = useMemo(() => {
+    if (!calculationSnapshot) return { totalFeedDays: 0, totalMgmtDays: 0 }
+    return calculateTotalDays(
+      getDaysInSettlementMonth(calculationSnapshot.settlementMonth),
+      calculationSnapshot.settlementMonth,
+      farmName,
+      unit.id,
+      unit.placementDate,
+      unit.headCount,
+      unit.placementBatches,
+    )
+  }, [calculationSnapshot, farmName, unit.id, unit.placementDate, unit.headCount, unit.placementBatches])
+
+  const handleCalculate = () => {
+    if (!canCalculate) return
+    setCalculationSnapshot({
+      settlementMonth,
+      feedCost: Number(feedCost),
+      roughageCost: Number(roughageCost),
+      mgmtCost: Number(mgmtCost),
+    })
+  }
 
   const buildConfirmedRecord = () => {
     // 저장은 디바운스 대기 중인 값까지 반영한다.
@@ -335,7 +404,10 @@ export default function SettlementDetailScreen({
               <>
                 <button
                   type="button"
-                  onClick={() => setMode('edit')}
+                  onClick={() => {
+                    setMode('edit')
+                    setCalculationSnapshot(null)
+                  }}
                   className="border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
                 >
                   수정
@@ -367,7 +439,10 @@ export default function SettlementDetailScreen({
           <div className="flex items-center gap-2">
             <select
               value={settlementMonth}
-              onChange={(e) => setSettlementMonth(e.target.value)}
+              onChange={(e) => {
+                setSettlementMonth(e.target.value)
+                setCalculationSnapshot(null)
+              }}
               disabled={isMonthLocked}
               className={`w-48 border border-gray-200 px-3 py-2 text-[13px] focus:border-gray-400 focus:outline-none ${
                 isMonthLocked ? 'cursor-not-allowed bg-gray-50 text-gray-500' : 'text-gray-900'
@@ -416,12 +491,32 @@ export default function SettlementDetailScreen({
               disabled={isReadOnly}
             />
           </div>
+          {!isReadOnly && (
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleCalculate}
+                disabled={!canCalculate}
+                className={`px-3 py-2 text-xs font-medium ${
+                  canCalculate
+                    ? 'bg-gray-900 text-white hover:bg-gray-700'
+                    : 'cursor-not-allowed bg-gray-200 text-gray-400'
+                }`}
+              >
+                {calculationSnapshot ? '다시 계산하기' : '계산하기'}
+              </button>
+              {calculationSnapshot && !isCurrentCalculation && (
+                <p className="text-xs text-amber-600">입력값이 변경되었습니다. 계산하기를 눌러 결과를 갱신해 주세요.</p>
+              )}
+            </div>
+          )}
         </div>
 
         <AttachmentsPanel
           settlementMonth={settlementMonth}
           attachments={attachments}
           disabled={isReadOnly}
+          allowDownloads={!isNew}
           onAdd={(nextAttachments) => setAttachments((current) => [...current, ...nextAttachments])}
           onRemove={(attachmentId) => setAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId))}
         />
@@ -429,12 +524,12 @@ export default function SettlementDetailScreen({
         {result ? (
           <>
             <CostSummaryCard
-              feedCost={Number(debouncedFeedCost)}
-              roughageCost={Number(debouncedRoughageCost)}
+              feedCost={calculationSnapshot.feedCost}
+              roughageCost={calculationSnapshot.roughageCost}
               totalFeedCost={result.exactFeedSum}
               totalMgmtCost={result.exactMgmtSum}
-              totalFeedDays={totalFeedDays}
-              totalMgmtDays={totalMgmtDays}
+              totalFeedDays={calculatedDays.totalFeedDays}
+              totalMgmtDays={calculatedDays.totalMgmtDays}
             />
             <AllocationResult result={result} isCompletedUnit={unit.breedingStatus === '정산완료'} />
           </>

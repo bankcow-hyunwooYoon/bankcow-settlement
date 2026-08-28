@@ -61,8 +61,9 @@ function VerificationBanner({ result }) {
 function AllocationTable({ rows, totals }) {
   return (
     <div className="overflow-hidden border border-gray-200 bg-white">
-      <table className="w-full text-left text-[13px]">
-        <thead>
+      <div className="max-h-[1090px] overflow-auto">
+      <table className="w-full min-w-[1380px] text-left text-[13px]">
+        <thead className="sticky top-0 z-10 bg-gray-50">
           <tr className="bg-gray-50 text-gray-500">
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">개체명</th>
             <th className="border-b border-gray-200 px-4 py-2.5 font-medium">이력번호</th>
@@ -146,6 +147,7 @@ function AllocationTable({ rows, totals }) {
           </tr>
         </tfoot>
       </table>
+      </div>
     </div>
   )
 }
